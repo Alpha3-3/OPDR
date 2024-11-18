@@ -1,7 +1,7 @@
 import numpy as np
-from sklearn.metrics.pairwise import cosine_distances
-import random
 import glob
+import random
+
 
 def load_vectors(fname):
     """
@@ -32,102 +32,91 @@ def load_vectors(fname):
         return {}
 
 
-def load_reduced_data():
+def load_reduced_and_testing_data():
     """
-    Load reduced vectors and words from saved files.
+    Load reduced vectors for training and testing sets.
 
     Returns:
-        dict: A dictionary of reduced vectors from different methods.
-        np.ndarray: The original high-dimensional vectors.
-        list: Words corresponding to the vectors.
+        dict: Reduced training vectors from different methods.
+        dict: Reduced testing vectors from different methods.
     """
-    reduced_vectors = {}
+    reduced_train_vectors = {}
+    reduced_test_vectors = {}
+
+    # Load all reduced training set vectors
     for filepath in glob.glob("10000reduced_vectors_*.npy"):
         method_name = filepath.split("_")[-1].split(".")[0]  # Extract method name from file
-        reduced_vectors[method_name.upper()] = np.load(filepath)
+        reduced_train_vectors[method_name.upper()] = np.load(filepath)
 
-    file_path = r'D:\My notes\UW\HPDIC Lab\OPDR\wiki-news-300d-1M\wiki-news-300d-1M-sampled.vec'  # Replace with the actual file path
-    vectors = load_vectors(file_path)
-    original_vectors = np.array(list(vectors.values()))
-    words = np.load("../words.npy", allow_pickle=True).tolist()
-    return original_vectors, reduced_vectors, words
+    # Load all reduced testing set vectors
+    for filepath in glob.glob("100testing_reduced_vectors_*.npy"):
+        method_name = filepath.split("_")[-1].split(".")[0]  # Extract method name from file
+        reduced_test_vectors[method_name.upper()] = np.load(filepath)
+
+    return reduced_train_vectors, reduced_test_vectors
 
 
-
-def precompute_original_neighbors(original_vectors, k, sample_indices):
+def check_testing_accuracy(original_vectors, reduced_train_vectors, reduced_test_vectors, k=10):
     """
-    Precompute nearest neighbors for the original vectors using Euclidean distance (L2 norm).
+    Check the accuracy of dimensionality reduction methods using the testing set.
 
     Args:
         original_vectors (np.ndarray): Original high-dimensional vectors.
-        k (int): Number of nearest neighbors.
-        sample_indices (list): Indices of sampled points.
-
-    Returns:
-        dict: Precomputed nearest neighbors for each sampled point.
-    """
-    neighbors = {}
-    for idx in sample_indices:
-        # Compute Euclidean distances to all other points
-        distances = np.linalg.norm(original_vectors - original_vectors[idx], axis=1)
-        # Get indices of the k nearest neighbors (excluding the point itself)
-        neighbors[idx] = np.argsort(distances)[1:k + 1]  # Exclude the point itself (distance is 0)
-    return neighbors
-
-
-def check_reduction_accuracy(original_vectors, reduced_vectors_dict, k=10, iterations=100):
-    """
-    Check the accuracy of dimensionality reduction methods by comparing nearest neighbors.
-
-    Args:
-        original_vectors (np.ndarray): The original high-dimensional vectors.
-        reduced_vectors_dict (dict): A dictionary of reduced vectors from different methods.
+        reduced_train_vectors (dict): Reduced training vectors from different methods.
+        reduced_test_vectors (dict): Reduced testing vectors from different methods.
         k (int): Number of nearest neighbors to consider.
-        iterations (int): Number of random points to test.
 
     Returns:
-        dict: A dictionary with method names as keys and average accuracy as values.
+        dict: Accuracy results for each method.
     """
-    n_points = original_vectors.shape[0]
-    if n_points < k:
-        raise ValueError("Number of points is less than k. Cannot compute nearest neighbors.")
+    accuracies = {}
 
-    # Pre-generate random sample points for consistency across methods
-    sample_indices = [random.randint(0, n_points - 1) for _ in range(iterations)]
+    for method, test_vectors in reduced_test_vectors.items():
+        if method not in reduced_train_vectors:
+            print(f"Warning: No matching training set for method {method}. Skipping.")
+            continue
 
-    # Precompute original nearest neighbors
-    original_neighbors = precompute_original_neighbors(original_vectors, k, sample_indices)
+        train_vectors = reduced_train_vectors[method]
 
-    # Accuracy results for each method
-    accuracies = {method: [] for method in reduced_vectors_dict.keys()}
+        method_accuracies = []
+        for i in range(test_vectors.shape[0]):
+            # Find original nearest neighbors for the testing point
+            distances_original = np.linalg.norm(original_vectors - original_vectors[i], axis=1)
+            original_neighbors = np.argsort(distances_original)[1:k + 1]
 
-    for method, reduced_vectors in reduced_vectors_dict.items():
-        for idx in sample_indices:
-            # Compute Euclidean distances for the current sampled point
-            distances = np.linalg.norm(reduced_vectors - reduced_vectors[idx], axis=1)
+            # Find reduced nearest neighbors for the testing point
+            distances_reduced = np.linalg.norm(train_vectors - test_vectors[i], axis=1)
+            reduced_neighbors = np.argsort(distances_reduced)[:k]
 
-            # Compute nearest neighbors in the reduced space
-            reduced_neighbors = np.argsort(distances)[1:k + 1]  # Exclude the point itself
+            # Calculate accuracy for this point
+            common_neighbors = set(original_neighbors).intersection(reduced_neighbors)
+            accuracy = len(common_neighbors) / k * 100
+            method_accuracies.append(accuracy)
 
-            # Compare neighbors
-            common_neighbors = set(original_neighbors[idx]).intersection(set(reduced_neighbors))
-            accuracy = len(common_neighbors) / k * 100  # Accuracy as a percentage
-            accuracies[method].append(accuracy)
+        # Average accuracy for the current method
+        avg_accuracy = np.mean(method_accuracies)
+        accuracies[method] = avg_accuracy
 
-    # Compute average accuracy for each method
-    avg_accuracies = {method: np.mean(acc) for method, acc in accuracies.items()}
-    return avg_accuracies
+    return accuracies
+
 
 if __name__ == "__main__":
-    # Load data
-    original_vectors, reduced_vectors_dict, _ = load_reduced_data()
+    # File path for original high-dimensional vectors
+    file_path = r'D:\My notes\UW\HPDIC Lab\OPDR\wiki-news-300d-1M\wiki-news-300d-1M-sampled.vec'
 
-    # Check accuracy for all methods
-    accuracies = check_reduction_accuracy(original_vectors, reduced_vectors_dict, k=10, iterations=100)
+    # Load original high-dimensional vectors
+    vectors = load_vectors(file_path)
+    original_vectors = np.array(list(vectors.values()))
 
-    # Print and save results
-    with open("../accuracy_results.txt", "w") as f:
+    # Load reduced vectors for training and testing sets
+    reduced_train_vectors, reduced_test_vectors = load_reduced_and_testing_data()
+
+    # Check accuracy using the testing set
+    accuracies = check_testing_accuracy(original_vectors, reduced_train_vectors, reduced_test_vectors, k=10)
+
+    # Save accuracy results
+    with open("../testing_accuracy_results.txt", "w") as f:
         for method, accuracy in accuracies.items():
-            result = f"Average accuracy of {method}: {accuracy:.2f}%"
+            result = f"Accuracy for {method}: {accuracy:.2f}%"
             print(result)
             f.write(result + "\n")

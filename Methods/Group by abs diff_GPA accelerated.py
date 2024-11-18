@@ -103,12 +103,12 @@ def reduce_dimensions_by_grouping_opencl(vectors, num_groups):
     # Create reduced vectors based on groups using square sum
     reduced_vectors = np.zeros((m, num_groups))
     for i, group in enumerate(groups):
-        # Compute the square sum for each point in the group
         for dim in group:
-            reduced_vectors[:, i] += vectors[:, dim] ** 2  # Add the square of each dimension
-
-        # Scale the reduced dimension by taking the square root
-        reduced_vectors[:, i] = np.sqrt(reduced_vectors[:, i])  # Square root of the sum of squares
+            reduced_vectors[:, i] += vectors[:, dim] **2
+        if group_sums[i] > 0:
+            reduced_vectors[:, i] *= new_dimension_values[i] / np.sqrt(group_sums[i])
+        else:
+            print(f"Warning: Group {i} has a zero sum. Skipping adjustment.")
 
 
     return reduced_vectors, groups, new_dimension_values

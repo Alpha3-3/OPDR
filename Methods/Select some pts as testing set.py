@@ -1,0 +1,64 @@
+import numpy as np
+import random
+
+def load_vectors(fname):
+    """
+    Load word vectors from a file.
+
+    Args:
+        fname (str): Path to the file containing word vectors.
+
+    Returns:
+        dict: A dictionary where keys are words and values are vectors (as numpy arrays).
+    """
+    try:
+        with open(fname, 'r', encoding='utf-8', errors='ignore') as fin:
+            n, d = map(int, fin.readline().split())
+            print(f"Number of vectors: {n}, Dimension of each vector: {d}")
+
+            data = {}
+            for line in fin:
+                tokens = line.rstrip().split(' ')
+                word, vector = tokens[0], np.array(tokens[1:], dtype=np.float32)
+                data[word] = vector
+        return data
+    except FileNotFoundError:
+        print(f"File not found: {fname}")
+        return {}
+    except Exception as e:
+        print(f"Error loading vectors: {e}")
+        return {}
+
+def select_and_save_vectors(vectors, num_points=100, output_file='test_vectors.npy'):
+    """
+    Select a specified number of vectors randomly from the vectors dictionary and save them to a .npy file.
+
+    Args:
+        vectors (dict): Dictionary of word vectors.
+        num_points (int): Number of vectors to select.
+        output_file (str): Output .npy file path.
+    """
+    # Ensure the number of points doesn't exceed the available vectors
+    num_points = min(num_points, len(vectors))
+    print(f"Selecting {num_points} vectors out of {len(vectors)} available.")
+
+    # Randomly select words
+    selected_words = random.sample(list(vectors.keys()), num_points)
+    print(f"Selected words: {selected_words[:5]}...")  # Show first 5 selected words for verification
+
+    # Extract the corresponding vectors
+    selected_vectors = {word: vectors[word] for word in selected_words}
+
+    # Save the selected vectors as a .npy file
+    np.save(output_file, selected_vectors)
+    print(f"Saved selected vectors to {output_file}")
+
+if __name__ == "__main__":
+    # File path to your vector file
+    filename = r'D:\My notes\UW\HPDIC Lab\OPDR\wiki-news-300d-1M\wiki-news-300d-1M.vec'
+
+    # Load vectors
+    vectors = load_vectors(filename)
+
+    # Select and save 100 vectors
+    select_and_save_vectors(vectors, num_points=100, output_file='testing_set_vectors.npy')
