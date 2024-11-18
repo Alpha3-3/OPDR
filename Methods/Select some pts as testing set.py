@@ -19,8 +19,8 @@ def load_vectors(fname):
             data = {}
             for line in fin:
                 tokens = line.rstrip().split(' ')
-                word, vector = tokens[0], np.array(tokens[1:], dtype=np.float32)
-                data[word] = vector
+                vector = np.array(tokens[1:], dtype=np.float32)
+                data[len(data)] = vector  # Use a simple numeric key
         return data
     except FileNotFoundError:
         print(f"File not found: {fname}")
@@ -42,16 +42,15 @@ def select_and_save_vectors(vectors, num_points=100, output_file='test_vectors.n
     num_points = min(num_points, len(vectors))
     print(f"Selecting {num_points} vectors out of {len(vectors)} available.")
 
-    # Randomly select words
-    selected_words = random.sample(list(vectors.keys()), num_points)
-    print(f"Selected words: {selected_words[:5]}...")  # Show first 5 selected words for verification
+    # Randomly select keys
+    selected_keys = random.sample(list(vectors.keys()), num_points)
 
     # Extract the corresponding vectors
-    selected_vectors = {word: vectors[word] for word in selected_words}
+    selected_vectors = [vectors[key] for key in selected_keys]  # Only preserve vectors
 
     # Save the selected vectors as a .npy file
     np.save(output_file, selected_vectors)
-    print(f"Saved selected vectors to {output_file}")
+    print(f"Saved {len(selected_vectors)} vectors to {output_file}")
 
 if __name__ == "__main__":
     # File path to your vector file

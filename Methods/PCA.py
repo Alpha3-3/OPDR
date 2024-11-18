@@ -40,13 +40,10 @@ def reduce_dimension_pca(vectors, target_dimension):
         target_dimension (int): Target dimensionality after PCA reduction.
 
     Returns:
+        PCA: Trained PCA object.
         np.ndarray: Word vectors reduced to the target dimension.
-        list: Words corresponding to the reduced vectors.
-        PCA: The PCA object after fitting.
     """
-    words = list(vectors.keys())
     vector_array = np.array(list(vectors.values()))
-
     print(f"Original dimension: {vector_array.shape[1]}")
     print(f"Target dimension: {target_dimension}")
 
@@ -57,64 +54,46 @@ def reduce_dimension_pca(vectors, target_dimension):
     print(f"Explained variance ratio: {pca.explained_variance_ratio_}")
     print(f"Total explained variance: {np.sum(pca.explained_variance_ratio_)}")
 
-    return reduced_vectors, words, pca
+    return pca, reduced_vectors
+
+
+def apply_pca_to_test_set(test_vectors, pca):
+    """
+    Apply PCA transformation learned from the training set to the testing set.
+
+    Args:
+        test_vectors (np.ndarray): Test vectors to transform.
+        pca (PCA): Trained PCA object.
+
+    Returns:
+        np.ndarray: Dimension-reduced test vectors.
+    """
+    return pca.transform(test_vectors)
 
 
 if __name__ == "__main__":
-    # File path for training set
-    training_filename = r'D:\My notes\UW\HPDIC Lab\OPDR\wiki-news-300d-1M\wiki-news-300d-1M-sampled.vec'
+    # File paths
+    training_file = r'D:\My notes\UW\HPDIC Lab\OPDR\wiki-news-300d-1M\wiki-news-300d-1M-sampled.vec'
+    testing_file = 'testing_set_vectors.npy'
 
     # Load training vectors
-    training_vectors = load_vectors(training_filename)
-
+    training_vectors = load_vectors(training_file)
     if training_vectors:
-        # Convert training vectors to numpy array
-        training_vector_array = np.array(list(training_vectors.values()))
+        # Reduce training set dimensions
+        target_dimension = 30  # Adjust target dimension if necessary
+        pca, reduced_training_vectors = reduce_dimension_pca(training_vectors, target_dimension)
 
-        # Specify the target dimension
-        target_dimension = 30
-
-        # Reduce dimensions using PCA on training set
-        reduced_training_vectors, words, pca = reduce_dimension_pca(training_vectors, target_dimension)
-
-        # Save reduced training vectors and words for later use
+        # Save reduced training set
         np.save("10000reduced_vectors_pca.npy", reduced_training_vectors)
-        np.save("../words.npy", np.array(words))
-        print("Reduced training vectors and words saved.")
+        print("Reduced training vectors saved to 10000reduced_vectors_pca.npy")
 
-        # Load testing set vectors
-        test_vector_array = np.load('testing_set_vectors.npy', allow_pickle=True)
+        # Load testing set
+        test_vectors = np.load(testing_file)
+        print(f"Testing set shape: {test_vectors.shape}")
 
-        # Handle scalar array case
-        if test_vector_array.shape == ():
-            print("test_vector_array is a scalar. Extracting the contained object.")
-            test_vector_array = test_vector_array.item()
-            print(f"Extracted object type: {type(test_vector_array)}")
+        # Apply PCA transformation to testing set
+        reduced_testing_vectors = apply_pca_to_test_set(test_vectors, pca)
 
-            # Process based on the extracted object's type
-            if isinstance(test_vector_array, dict):
-                print(f"Testing set is a dictionary with {len(test_vector_array)} items.")
-                test_vector_array = np.array(list(test_vector_array.values()))
-            elif isinstance(test_vector_array, list):
-                print(f"Testing set is a list with {len(test_vector_array)} elements.")
-                test_vector_array = np.vstack(test_vector_array)
-            elif isinstance(test_vector_array, np.ndarray):
-                print(f"Testing set is already a NumPy array with shape: {test_vector_array.shape}")
-            else:
-                print("Error: Unsupported testing set format.")
-                exit(1)
-
-        # Ensure the test vectors have the same original dimensionality
-        if test_vector_array.ndim != 2:
-            print("Error: test_vector_array is not a 2D array.")
-            exit(1)
-
-        if test_vector_array.shape[1] != training_vector_array.shape[1]:
-            print(f"Error: The testing vectors have dimensionality {test_vector_array.shape[1]}, "
-                  f"which does not match the training vectors' dimensionality {training_vector_array.shape[1]}.")
-            exit(1)
-        else:
-            # Apply PCA transformation to the testing set
-            reduced_test_vectors = pca.transform(test_vector_array)
-            np.save("100testing_reduced_vectors_pca.npy", reduced_test_vectors)
-            print("Reduced testing vectors saved.")
+        # Save reduced testing set
+        np.save("100testing_reduced_vectors_pca.npy", reduced_testing_vectors)
+        print("Reduced testing vectors saved to 100testing_reduced_vectors_pca.npy")

@@ -1,5 +1,5 @@
 import numpy as np
-import json
+
 
 def load_vectors(fname):
     """
@@ -29,133 +29,120 @@ def load_vectors(fname):
         print(f"Error loading vectors: {e}")
         return {}
 
+
 def make_non_negative(vectors):
     """
     Adjust the values in each dimension of the vectors to be non-negative.
-    """
-    min_values = np.min(vectors, axis=0)
-    adjustment = np.abs(np.minimum(0, min_values))  # Only add if min_value < 0
-    return vectors + adjustment
-
-def group_dimensions(vectors, target_dimension, save_group_file=None):
-    """
-    Group dimensions based on variance and balance them across groups.
 
     Args:
-        vectors (np.ndarray): 2D numpy array of shape (m, n) where m is the number of vectors and n is the dimensionality.
+        vectors (np.ndarray): 2D numpy array of shape (m, n) where m is the
+                              number of vectors and n is the dimensionality.
+
+    Returns:
+        np.ndarray: Adjusted vectors with all values non-negative.
+    """
+    # Compute the minimum value for each dimension
+    min_values = np.min(vectors, axis=0)
+
+    # Adjust vectors by adding the absolute value of minimum values (if negative)
+    adjustment = np.abs(np.minimum(0, min_values))  # Only add if min_value < 0
+    adjusted_vectors = vectors + adjustment
+
+    return adjusted_vectors
+
+
+def group_dimensions(vectors, target_dimension):
+    """
+    Group dimensions such that the variance of the square sum of each group is balanced.
+
+    Args:
+        vectors (np.ndarray): 2D numpy array where each row is a vector, and each column is a dimension.
         target_dimension (int): Desired number of dimensions after grouping.
-        save_group_file (str): Optional path to save the grouping information.
 
     Returns:
         np.ndarray: Transformed vectors with reduced dimensions.
-        list: Grouping information.
+        list: Grouping of dimensions used for reduction.
     """
+    # Calculate variance of each dimension
     variances = np.var(vectors, axis=0)
-    sorted_indices = np.argsort(-variances)  # Sort in descending order of variance
+
+    # Sort dimensions by variance in descending order
+    sorted_indices = np.argsort(-variances)  # Descending order
     sorted_variances = variances[sorted_indices]
 
+    # Initialize groups and their variance sums
     groups = [[] for _ in range(target_dimension)]
     group_variances = np.zeros(target_dimension)
 
+    # Distribute dimensions to groups, prioritizing variance balance
     for idx, var in zip(sorted_indices, sorted_variances):
+        # Find the group with the smallest total variance sum
         min_group = np.argmin(group_variances)
-        groups[min_group].append(int(idx))  # Convert to standard Python int
-        group_variances[min_group] += var
+        groups[min_group].append(idx)
+        group_variances[min_group] += var  # Update the variance sum of the chosen group
 
+    # Create the new grouped dimensions
     new_vectors = np.zeros((vectors.shape[0], target_dimension))
     for i, group in enumerate(groups):
-        new_vectors[:, i] = np.sqrt(np.sum(np.square(vectors[:, group]), axis=1))
-
-    # Optionally save grouping information
-    if save_group_file:
-        # Ensure all indices are Python int for JSON serialization
-        groups_json_serializable = [[int(idx) for idx in group] for group in groups]
-        with open(save_group_file, "w") as f:
-            json.dump(groups_json_serializable, f)
-        print(f"Saved grouping information to {save_group_file}")
+        # Compute square sum for each group to form new dimension
+        new_vectors[:, i] = np.sum(vectors[:, group], axis=1)
 
     return new_vectors, groups
 
-def apply_grouping_to_testing(vectors, groups):
+
+def apply_grouping_to_testing_set(test_vectors, groups):
     """
-    Apply pre-computed grouping to the testing vectors.
+    Apply the grouping derived from the training set to the testing set.
 
     Args:
-        vectors (np.ndarray): Testing set vectors.
-        groups (list): Pre-computed grouping information.
+        test_vectors (np.ndarray): Original testing vectors.
+        groups (list): Grouping of dimensions derived from the training set.
 
     Returns:
-        np.ndarray: Transformed testing set vectors with reduced dimensions.
+        np.ndarray: Transformed testing vectors.
     """
     target_dimension = len(groups)
-    new_vectors = np.zeros((vectors.shape[0], target_dimension))
+    reduced_test_vectors = np.zeros((test_vectors.shape[0], target_dimension))
+
     for i, group in enumerate(groups):
-        new_vectors[:, i] = np.sqrt(np.sum(np.square(vectors[:, group]), axis=1))
-    return new_vectors
+        reduced_test_vectors[:, i] = np.sum(test_vectors[:, group], axis=1)
+
+    return reduced_test_vectors
+
 
 if __name__ == "__main__":
     # File paths
     training_file = r'D:\My notes\UW\HPDIC Lab\OPDR\wiki-news-300d-1M\wiki-news-300d-1M-sampled.vec'
-    testing_file = "testing_set_vectors.npy"
+    testing_file = 'testing_set_vectors.npy'
 
     # Load training vectors
     training_vectors = load_vectors(training_file)
-
     if training_vectors:
         words = list(training_vectors.keys())
-        training_array = np.array(list(training_vectors.values()))
+        vector_array = np.array(list(training_vectors.values()))
 
-        # Make non-negative
-        training_array = make_non_negative(training_array)
+        # Preprocess: Make vectors non-negative
+        vector_array = make_non_negative(vector_array)
 
-        # Specify target dimension
-        target_dimension = 30
+        # Specify the target dimension
+        target_dimension = 30  # Adjust this as necessary
 
-        # Group dimensions and save grouping info
-        reduced_training_vectors, groups = group_dimensions(
-            training_array,
-            target_dimension,
-            save_group_file="dimension_groups.json"
-        )
+        # Group dimensions and reduce training set
+        reduced_training_vectors, groups = group_dimensions(vector_array, target_dimension)
 
-        # Save reduced training vectors
-        np.save("10000reduced_vectors_groupBasedOnVar.npy", reduced_training_vectors)
-        np.save("../words.npy", np.array(words))
-        print("Reduced training vectors and words saved.")
+        # Save reduced training set
+        np.save("10000reduced_vectors_groupByVar.npy", reduced_training_vectors)
+        print("Reduced training vectors saved to 10000reduced_vectors_groupByVar.npy")
 
-        # Load testing vectors
-        testing_array = np.load(testing_file, allow_pickle=True)
+        # Load testing set
+        test_vectors = np.load(testing_file)
 
-        # Handle scalar array case
-        if testing_array.shape == ():
-            print("testing_array is a scalar. Extracting the contained object.")
-            testing_array = testing_array.item()
-            print(f"Extracted object type: {type(testing_array)}")
+        # Preprocess: Make testing vectors non-negative
+        test_vectors = make_non_negative(test_vectors)
 
-            # Process based on the extracted object's type
-            if isinstance(testing_array, dict):
-                print(f"Testing set is a dictionary with {len(testing_array)} items.")
-                testing_array = np.array(list(testing_array.values()))
-            elif isinstance(testing_array, list):
-                print(f"Testing set is a list with {len(testing_array)} elements.")
-                testing_array = np.vstack(testing_array)
-            elif isinstance(testing_array, np.ndarray):
-                print(f"Testing set is already a NumPy array with shape: {testing_array.shape}")
-            else:
-                print("Error: Unsupported testing set format.")
-                exit(1)
+        # Apply the same grouping to the testing set
+        reduced_testing_vectors = apply_grouping_to_testing_set(test_vectors, groups)
 
-        # Ensure the test vectors have the expected dimensions
-        if testing_array.ndim != 2:
-            print("Error: testing_array is not a 2D array.")
-            exit(1)
-
-        # Make non-negative
-        testing_array = make_non_negative(testing_array)
-
-        # Apply grouping to testing set
-        reduced_testing_vectors = apply_grouping_to_testing(testing_array, groups)
-
-        # Save reduced testing vectors
-        np.save("100testing_reduced_vectors_groupBasedOnVar.npy", reduced_testing_vectors)
-        print("Reduced testing vectors saved.")
+        # Save reduced testing set
+        np.save("100testing_reduced_vectors_groupByVar.npy", reduced_testing_vectors)
+        print("Reduced testing vectors saved to 100testing_reduced_vectors_groupByVar.npy")
