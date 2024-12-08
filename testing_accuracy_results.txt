@@ -1,0 +1,2 @@
+Accuracy for GROUPBASEDONVAR: 0.10%
+Accuracy for PCA: 0.00%

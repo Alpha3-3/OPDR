@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def exclude_extreme_values(vector_array, top_exclude=50):
     """
     Compute the standard deviation of each dimension, excluding the top max and min values.
@@ -16,7 +15,6 @@ def exclude_extreme_values(vector_array, top_exclude=50):
     trimmed_array = sorted_array[top_exclude:-top_exclude, :]  # Exclude top and bottom values
     return np.std(trimmed_array, axis=0)
 
-
 def preserve_top_dimensions(vector_array, top_dimensions=30, top_exclude=50):
     """
     Preserve the top dimensions based on standard deviation after excluding extremes.
@@ -28,6 +26,7 @@ def preserve_top_dimensions(vector_array, top_dimensions=30, top_exclude=50):
 
     Returns:
         np.ndarray: Reduced-dimensional vectors.
+        np.ndarray: Indices of the selected dimensions.
     """
     print(f"Original shape: {vector_array.shape}")
 
@@ -43,8 +42,7 @@ def preserve_top_dimensions(vector_array, top_dimensions=30, top_exclude=50):
     reduced_array = vector_array[:, top_indices]
     print(f"Reduced shape: {reduced_array.shape}")
 
-    return reduced_array
-
+    return reduced_array, top_indices
 
 def load_vectors(fname):
     """
@@ -54,8 +52,7 @@ def load_vectors(fname):
         fname (str): Path to the file containing word vectors.
 
     Returns:
-        np.ndarray: Word vectors.
-        list: Words corresponding to the vectors.
+        dict: Dictionary of word vectors.
     """
     try:
         with open(fname, 'r', encoding='utf-8', errors='ignore') as fin:
@@ -75,24 +72,41 @@ def load_vectors(fname):
         print(f"Error loading vectors: {e}")
         return {}
 
-
 if __name__ == "__main__":
-    # File path
-    filename = r'D:\My notes\UW\HPDIC Lab\OPDR\wiki-news-300d-1M\wiki-news-300d-1M-sampled.vec'
+    # File paths
+    training_file = r'D:\My notes\UW\HPDIC Lab\OPDR\wiki-news-300d-1M\wiki-news-300d-1M-sampled.vec'
+    testing_file = 'testing_set_vectors.npy'
 
-    # Load vectors
-    vectors = load_vectors(filename)
+    # Load training vectors
+    print("\nLoading training vectors:")
+    vectors = load_vectors(training_file)
 
     if vectors:
         # Convert to numpy array
         words = list(vectors.keys())
         vector_array = np.array(list(vectors.values()))
 
-        # Perform custom dimension reduction
+        # Perform custom dimension reduction on training set
         target_dimensions = 30
-        reduced_vectors = preserve_top_dimensions(vector_array, top_dimensions=target_dimensions, top_exclude=50)
+        reduced_vectors, top_indices = preserve_top_dimensions(vector_array, top_dimensions=target_dimensions, top_exclude=50)
 
-        # Save reduced vectors and words for later use
+        # Save reduced training vectors
         np.save("10000reduced_vectors_topStdOnly.npy", reduced_vectors)
+        print("Reduced training vectors saved to 10000reduced_vectors_topStdOnly.npy")
+
+        # Save words (optional)
         np.save("../words.npy", np.array(words))
-        print("Reduced vectors and words saved.")
+        print("Words saved to ../words.npy")
+
+        # Load testing vectors
+        print("\nLoading testing vectors:")
+        test_vectors = np.load(testing_file)
+        print(f"Testing vectors shape: {test_vectors.shape}")
+
+        # Reduce testing vectors using the same dimensions
+        reduced_test_vectors = test_vectors[:, top_indices]
+        print(f"Reduced testing vectors shape: {reduced_test_vectors.shape}")
+
+        # Save reduced testing vectors
+        np.save("100testing_reduced_vectors_topStdOnly.npy", reduced_test_vectors)
+        print("Reduced testing vectors saved to 100testing_reduced_vectors_topStdOnly.npy")

@@ -1,0 +1,4 @@
+Average accuracy of GROUPBYABSDIFFGPUACC: 8.10%
+Average accuracy of GROUPBYABSDIFFMEDIANGPUACC: 24.30%
+Average accuracy of PCA: 35.90%
+Average accuracy of RANDOMPROJECTION: 23.30%

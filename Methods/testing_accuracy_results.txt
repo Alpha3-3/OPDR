@@ -1,0 +1,5 @@
+Accuracy for GROUPBYABSDIFFGPUACC: 25.48%
+Accuracy for GROUPBYVAR: 0.08%
+Accuracy for PCA: 43.99%
+Accuracy for RANDOMPROJECTION: 26.68%
+Accuracy for TOPSTDONLY: 26.53%

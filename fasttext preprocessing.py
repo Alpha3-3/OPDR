@@ -31,21 +31,22 @@ def load_vectors(fname):
         return {}
 
 
-def compute_dimension_stats(vector_array, remove_extremes=False, n_remove=50):
+def compute_dimension_stats(vector_array, remove_extremes=False, percentage=1.0):
     """
-    Compute statistics per dimension with an option to remove top N max and min values.
+    Compute statistics per dimension with an option to remove top and bottom percentage of values.
 
     Args:
         vector_array (np.ndarray): Array of vectors.
-        remove_extremes (bool): If True, removes top N max and min values before computing statistics.
-        n_remove (int): Number of max and min values to remove if remove_extremes is True.
+        remove_extremes (bool): If True, removes top and bottom percentage of values before computing statistics.
+        percentage (float): Percentage of max and min values to remove if remove_extremes is True.
 
     Returns:
         dict: Statistics (max, min, avg, range, std, percentage_range) per dimension.
     """
     if remove_extremes:
+        n_remove = int(vector_array.shape[0] * (percentage / 100))
         sorted_vectors = np.sort(vector_array, axis=0)
-        trimmed_vectors = sorted_vectors[n_remove:-n_remove]  # Remove top and bottom n_remove values
+        trimmed_vectors = sorted_vectors[n_remove:-n_remove]  # Remove top and bottom 1% values
     else:
         trimmed_vectors = vector_array
 
@@ -67,7 +68,7 @@ def compute_dimension_stats(vector_array, remove_extremes=False, n_remove=50):
     }
 
 
-def plot_dimension_stats(dimension_stats, title_suffix="", label_extremes=False, n_remove=50):
+def plot_dimension_stats(dimension_stats, title_suffix="", label_extremes=False, percentage=1.0):
     """
     Plot statistics per dimension.
 
@@ -75,10 +76,10 @@ def plot_dimension_stats(dimension_stats, title_suffix="", label_extremes=False,
         dimension_stats (dict): Statistics per dimension.
         title_suffix (str): Suffix for plot titles.
         label_extremes (bool): If True, adds a label for removed extremes.
-        n_remove (int): Number of max and min values removed if label_extremes is True.
+        percentage (float): Percentage of max and min values removed if label_extremes is True.
     """
     dimensions = np.arange(len(dimension_stats["avg"]))
-    label = f" (Top {n_remove} Max/Min Removed)" if label_extremes else ""
+    label = f" (Top and Bottom {percentage}% Removed)" if label_extremes else ""
 
     plt.figure(figsize=(15, 12))
 
@@ -141,10 +142,10 @@ def plot_dimension_stats(dimension_stats, title_suffix="", label_extremes=False,
 
 
 # File path
-# filename = r'D:\My notes\UW\HPDIC Lab\OPDR\wiki-news-300d-1M\wiki-news-300d-1M.vec'
+filename = r'D:\My notes\UW\HPDIC Lab\OPDR\wiki-news-300d-1M\wiki-news-300d-1M-sampled.vec'
 
 # Load the vectors
-vectors = np.load("original_vectors.npy")
+vectors = load_vectors(filename)
 
 if vectors:
     # Convert to numpy array
@@ -154,6 +155,6 @@ if vectors:
     dimension_stats = compute_dimension_stats(vector_array)
     plot_dimension_stats(dimension_stats, title_suffix="(Original)")
 
-    # Compute and plot stats with top 50 max and min removed
-    dimension_stats_trimmed = compute_dimension_stats(vector_array, remove_extremes=True, n_remove=50)
-    plot_dimension_stats(dimension_stats_trimmed, title_suffix="(Trimmed)", label_extremes=True, n_remove=50)
+    # Compute and plot stats with top and bottom 1% removed
+    dimension_stats_trimmed = compute_dimension_stats(vector_array, remove_extremes=True, percentage=1.0)
+    plot_dimension_stats(dimension_stats_trimmed, title_suffix="(Trimmed)", label_extremes=True, percentage=1.0)
