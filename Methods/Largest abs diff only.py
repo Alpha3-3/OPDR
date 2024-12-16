@@ -33,7 +33,7 @@ def load_vectors(fname):
         print(f"Error loading vectors: {e}")
         return {}
 
-def reduce_dimensions_by_grouping_opencl(vectors, num_groups):
+def reduce_dimensions_top_opencl(vectors, num_groups):
     """
     Reduce dimensions by grouping based on average absolute differences using OpenCL.
 
@@ -92,48 +92,26 @@ def reduce_dimensions_by_grouping_opencl(vectors, num_groups):
     cl.enqueue_copy(queue, avg_abs_diffs, avg_abs_diffs_buf)
     queue.finish()
 
-    # Sort dimensions by average absolute differences in descending order
-    sorted_indices = np.argsort(-avg_abs_diffs)
-    sorted_averages = avg_abs_diffs[sorted_indices]
+    # Select the top dimensions with the largest average absolute differences
+    top_indices = np.argsort(-avg_abs_diffs)[:num_groups]
 
-    # Initialize groups and their sum of averages
-    groups = [[] for _ in range(num_groups)]
-    group_sums = np.zeros(num_groups)
+    # Extract the corresponding vectors
+    reduced_vectors = vectors[:, top_indices]
 
-    # Distribute dimensions into groups to balance the sum of averages
-    for idx, avg in zip(sorted_indices, sorted_averages):
-        # Find the group with the smallest total sum
-        min_group = np.argmin(group_sums)
-        groups[min_group].append(idx)
-        group_sums[min_group] += avg
+    return reduced_vectors, top_indices
 
-    # Create reduced vectors based on groups
-    reduced_vectors = np.zeros((m, num_groups), dtype=np.float32)
-    for i, group in enumerate(groups):
-        # Sum the selected dimensions
-        reduced_vectors[:, i] = np.sum(vectors[:, group] , axis=1)
-
-    return reduced_vectors, groups
-
-def apply_grouping_to_testing_set(test_vectors, groups):
+def apply_top_selection_to_testing_set(test_vectors, top_indices):
     """
-    Apply the grouping derived from the training set to the testing set.
+    Apply the top dimension selection to the testing set.
 
     Args:
         test_vectors (np.ndarray): Original testing vectors.
-        groups (list): Grouping of dimensions derived from the training set.
+        top_indices (list): Indices of the top dimensions.
 
     Returns:
-        np.ndarray: Transformed testing vectors.
+        np.ndarray: Reduced testing vectors containing only the selected dimensions.
     """
-    m = test_vectors.shape[0]
-    num_groups = len(groups)
-    reduced_test_vectors = np.zeros((m, num_groups), dtype=np.float32)
-
-    for i, group in enumerate(groups):
-        reduced_test_vectors[:, i] = np.sum(test_vectors[:, group], axis=1)
-
-    return reduced_test_vectors
+    return test_vectors[:, top_indices]
 
 if __name__ == "__main__":
     # File paths
@@ -152,23 +130,24 @@ if __name__ == "__main__":
         # Specify the number of groups (new dimensions)
         num_groups = 150  # Adjust as needed
 
-        # Dimension reduction using OpenCL
-        print("\nReducing dimensions of training set using grouping (OpenCL):")
-        reduced_training_vectors, groups = reduce_dimensions_by_grouping_opencl(training_vectors, num_groups)
+        # Dimension reduction using OpenCL (top dimensions)
+        print("\nReducing dimensions of training set by selecting top dimensions (OpenCL):")
+        reduced_training_vectors, top_indices = reduce_dimensions_top_opencl(training_vectors, num_groups)
 
         # Save reduced training vectors
-        np.save("10000reduced_vectors_groupByAbsDiffGPUAcc.npy", reduced_training_vectors)
-        print("Reduced training vectors saved to 10000reduced_vectors_groupByAbsDiffGPUAcc.npy")
+        np.save("10000reduced_vectors_topAbsDiffGPUAccTop.npy", reduced_training_vectors)
+        print("Reduced training vectors saved to 10000reduced_vectors_topAbsDiffGPUAccTop.npy")
 
         # Load testing vectors
         print("\nLoading testing vectors:")
         test_vectors = np.load(testing_file)
         print(f"Testing vectors shape: {test_vectors.shape}")
 
-        # Apply the same grouping to the testing set
-        print("\nReducing dimensions of testing set using the same grouping:")
-        reduced_testing_vectors = apply_grouping_to_testing_set(test_vectors, groups)
+        # Reduce dimensions of testing set using the same top indices
+        print("\nReducing dimensions of testing set by selecting top dimensions:")
+        reduced_testing_vectors = apply_top_selection_to_testing_set(test_vectors, top_indices)
 
         # Save reduced testing vectors
-        np.save("100testing_reduced_vectors_groupByAbsDiffGPUAcc.npy", reduced_testing_vectors)
-        print("Reduced testing vectors saved to 100testing_reduced_vectors_groupByAbsDiffGPUAcc.npy")
+        np.save("100testing_reduced_vectors_topAbsDiffGPUAccTop.npy", reduced_testing_vectors)
+        print("Reduced testing vectors saved to 100testing_reduced_vectors_topAbsDiffGPUAccTop.npy")
+

@@ -2,6 +2,8 @@ import numpy as np
 import pyopencl as cl
 from tqdm import tqdm
 import os
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 os.environ["PYOPENCL_COMPILER_OUTPUT"] = "1"
 
@@ -35,7 +37,7 @@ def load_vectors(fname):
 
 def reduce_dimensions_by_grouping_opencl(vectors, num_groups):
     """
-    Reduce dimensions by grouping based on average absolute differences using OpenCL.
+    Reduce dimensions by grouping based on average absolute differences using OpenCL and PCA.
 
     Args:
         vectors (np.ndarray): Array of shape (m, n), where m is the number of vectors and n is the number of dimensions.
@@ -107,14 +109,34 @@ def reduce_dimensions_by_grouping_opencl(vectors, num_groups):
         groups[min_group].append(idx)
         group_sums[min_group] += avg
 
-    # Create reduced vectors based on groups
+    # Debug: Check for empty groups
+    print(f"Groups formed: {[len(group) for group in groups]}")
+
+    # Create reduced vectors based on groups using PCA then rescale
     reduced_vectors = np.zeros((m, num_groups), dtype=np.float32)
     for i, group in enumerate(groups):
-        # Sum the selected dimensions
-        reduced_vectors[:, i] = np.sum(vectors[:, group] , axis=1)
+        if len(group) == 0:  # Handle empty group
+            print(f"Warning: Group {i} is empty. Skipping.")
+            continue
 
-    return reduced_vectors, groups
+        # Extract the dimensions corresponding to the current group
+        group_vectors = vectors[:, group]  # Shape: (m, len(group))
 
+        # Use PCA to reduce the group to 1 dimension
+        if group_vectors.shape[1] > 1:  # Apply PCA only if group has more than one dimension
+            pca = PCA(n_components=1)
+            reduced_group = pca.fit_transform(group_vectors).flatten()  # Shape: (m,)
+        else:
+            reduced_group = group_vectors.flatten()  # If the group has only one dimension, use it directly
+
+        # Store the reduced group as the i-th new dimension
+        reduced_vectors[:, i] = reduced_group
+
+    # Scale the reduced vectors to have zero mean and unit variance
+    scaler = StandardScaler()
+    scaled_reduced_vectors = scaler.fit_transform(reduced_vectors)
+
+    return scaled_reduced_vectors, groups
 def apply_grouping_to_testing_set(test_vectors, groups):
     """
     Apply the grouping derived from the training set to the testing set.
@@ -157,8 +179,8 @@ if __name__ == "__main__":
         reduced_training_vectors, groups = reduce_dimensions_by_grouping_opencl(training_vectors, num_groups)
 
         # Save reduced training vectors
-        np.save("10000reduced_vectors_groupByAbsDiffGPUAcc.npy", reduced_training_vectors)
-        print("Reduced training vectors saved to 10000reduced_vectors_groupByAbsDiffGPUAcc.npy")
+        np.save("10000reduced_vectors_groupByAbsDiffGPUAccPCA.npy", reduced_training_vectors)
+        print("Reduced training vectors saved to 10000reduced_vectors_groupByAbsDiffGPUAccPCA.npy")
 
         # Load testing vectors
         print("\nLoading testing vectors:")
@@ -170,5 +192,5 @@ if __name__ == "__main__":
         reduced_testing_vectors = apply_grouping_to_testing_set(test_vectors, groups)
 
         # Save reduced testing vectors
-        np.save("100testing_reduced_vectors_groupByAbsDiffGPUAcc.npy", reduced_testing_vectors)
-        print("Reduced testing vectors saved to 100testing_reduced_vectors_groupByAbsDiffGPUAcc.npy")
+        np.save("100testing_reduced_vectors_groupByAbsDiffGPUAccPCA.npy", reduced_testing_vectors)
+        print("Reduced testing vectors saved to 100testing_reduced_vectors_groupByAbsDiffGPUAccPCA.npy")
