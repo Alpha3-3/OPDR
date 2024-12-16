@@ -80,7 +80,7 @@ if __name__ == "__main__":
     training_vectors = load_vectors(training_file)
     if training_vectors:
         # Reduce training set dimensions
-        target_dimension = 30  # Adjust target dimension if necessary
+        target_dimension = 150  # Adjust target dimension if necessary
         pca, reduced_training_vectors = reduce_dimension_pca(training_vectors, target_dimension)
 
         # Save reduced training set
