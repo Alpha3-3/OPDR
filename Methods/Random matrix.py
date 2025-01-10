@@ -85,7 +85,7 @@ if __name__ == "__main__":
         training_vectors = np.array(list(training_vectors_dict.values()))
 
         # Specify the target dimension
-        target_dimension = 30  # Adjust as needed
+        target_dimension = 150  # Adjust as needed
 
         # Reduce dimensions using random projection
         reduced_training_vectors, projection_matrix = random_projection(training_vectors, target_dimension)

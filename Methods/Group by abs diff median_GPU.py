@@ -26,116 +26,102 @@ def load_vectors(fname):
 
 def reduce_dimensions_by_grouping_opencl(vectors, num_groups):
     m, n = vectors.shape
-    median_abs_diffs = np.zeros(n, dtype=np.float32)  # To store the filtered medians for each dimension
+    median_abs_diffs = np.zeros(n, dtype=np.float32)
 
     # OpenCL setup
     context = cl.create_some_context()
     queue = cl.CommandQueue(context)
 
-    # Kernel for absolute differences
     kernel_code = """
     __kernel void calc_abs_diff(__global const float *vectors, __global float *abs_diffs, int m, int n) {
-        int dim = get_global_id(0);  // Current dimension
-        int i = get_global_id(1);    // Current row (vector index)
+        int dim = get_global_id(0);  
+        int i = get_global_id(1);
 
         if (dim >= n || i >= m) return;
 
-        // Compute absolute differences
         for (int j = 0; j < m; ++j) {
             if (i != j) {
                 float diff = fabs(vectors[i * n + dim] - vectors[j * n + dim]);
-                abs_diffs[i * m + j] = diff;  // Store pairwise differences for this dimension
+                abs_diffs[i * m + j] = diff;
             }
         }
     }
     """
     program = cl.Program(context, kernel_code).build()
 
-    # Create buffers
     mf = cl.mem_flags
     vectors_buf = cl.Buffer(context, mf.READ_ONLY | mf.COPY_HOST_PTR, hostbuf=vectors)
-    abs_diffs_buf = cl.Buffer(context, mf.WRITE_ONLY, m * m * 4)  # Buffer for one dimension (float32)
+    abs_diffs_buf = cl.Buffer(context, mf.WRITE_ONLY, m * m * 4)
 
-    # Add a progress bar for tracking dimensions
     for dim in tqdm(range(n), desc="Processing dimensions", unit="dim"):
-        # Execute the kernel for one dimension
-        global_size = (1, m)  # Process one dimension across all rows
+        global_size = (1, m)
         program.calc_abs_diff(queue, global_size, None, vectors_buf, abs_diffs_buf, np.int32(m), np.int32(n))
 
-        # Retrieve results for the current dimension
         abs_diffs = np.zeros((m, m), dtype=np.float32)
         cl.enqueue_copy(queue, abs_diffs, abs_diffs_buf)
         queue.finish()
 
-        # Flatten and filter differences
         differences = abs_diffs.flatten()
-        relative_diffs = differences / max(np.abs(vectors[:, dim]).mean(), 1e-8)  # Avoid divide-by-zero
+        relative_diffs = differences / max(np.abs(vectors[:, dim]).mean(), 1e-8)
         relative_diffs = np.sort(relative_diffs)
 
-        # Remove top 1% max and min
         lower_bound = int(len(relative_diffs) * 0.01)
         upper_bound = int(len(relative_diffs) * 0.99)
         filtered_diffs = relative_diffs[lower_bound:upper_bound]
 
-        # Compute the median
         median_abs_diffs[dim] = np.median(filtered_diffs)
 
-    print("Median absolute differences after filtering (debug):", median_abs_diffs)
-
-    # Sort dimensions by median absolute differences
     sorted_indices = np.argsort(-median_abs_diffs)
     sorted_medians = median_abs_diffs[sorted_indices]
-    print("Sorted medians (debug):", sorted_medians)
 
-    # Initialize groups
     groups = [[] for _ in range(num_groups)]
     group_sums = np.zeros(num_groups)
 
-    # Greedy grouping to balance square sums
-    for med, index in zip(sorted_medians, sorted_indices):
+    for med, idx in zip(sorted_medians, sorted_indices):
         min_group = np.argmin(group_sums)
-        groups[min_group].append(index)
+        groups[min_group].append(idx)
         group_sums[min_group] += med**2
 
-    # Calculate the new dimension values as square root of square sums
-    new_dimension_values = np.sqrt(group_sums)
-
     # Create reduced vectors based on groups
-    reduced_vectors = np.zeros((m, num_groups))
+    reduced_vectors = np.zeros((m, num_groups), dtype=np.float32)
     for i, group in enumerate(groups):
-        for dim in group:
-            reduced_vectors[:, i] += vectors[:, dim]
-        if group_sums[i] > 0:
-            reduced_vectors[:, i] *= new_dimension_values[i] / np.sqrt(group_sums[i])
-        else:
-            print(f"Warning: Group {i} has a zero sum. Skipping adjustment.")
+        # Sum the selected dimensions
+        reduced_vectors[:, i] = np.sum(vectors[:, group] , axis=1)
 
+    return reduced_vectors, groups
 
-    return reduced_vectors, groups, new_dimension_values
+def apply_grouping_to_testing_set(test_vectors, groups):
+    m = test_vectors.shape[0]
+    num_groups = len(groups)
+    reduced_test_vectors = np.zeros((m, num_groups), dtype=np.float32)
+
+    for i, group in enumerate(groups):
+        reduced_test_vectors[:, i] = np.sum(test_vectors[:, group], axis=1)
+
+    return reduced_test_vectors
 
 if __name__ == "__main__":
-    # File path for word vectors
-    filename = r'D:\My notes\UW\HPDIC Lab\OPDR\wiki-news-300d-1M\wiki-news-300d-1M-sampled.vec'
+    training_file = r'D:\My notes\UW\HPDIC Lab\OPDR\wiki-news-300d-1M\wiki-news-300d-1M-sampled.vec'
+    testing_file = 'testing_set_vectors.npy'
 
-    # Load word vectors
-    print("\nLoading word vectors:")
-    vectors = load_vectors(filename)
+    print("\nLoading training vectors:")
+    training_vectors_dict = load_vectors(training_file)
 
-    if vectors:
-        vector_array = np.array(list(vectors.values()))
-        words = list(vectors.keys())
+    if training_vectors_dict:
+        words = list(training_vectors_dict.keys())
+        training_vectors = np.array(list(training_vectors_dict.values()))
 
-        # Specify the number of groups (new dimensions)
-        num_groups = 30  # Modify this as needed
+        num_groups = 150
 
-        # Dimension reduction using OpenCL
-        print("\nReducing dimensions using grouping (OpenCL):")
-        reduced_vectors, groups, new_dimension_values = reduce_dimensions_by_grouping_opencl(vector_array, num_groups)
+        print("\nReducing dimensions of training set:")
+        reduced_training_vectors, groups = reduce_dimensions_by_grouping_opencl(training_vectors, num_groups)
 
-        print(f"New dimension values: {new_dimension_values}")
-        print(f"Groups (indices of original dimensions): {groups}")
+        np.save("10000reduced_vectors_groupByAbsDiffGPUAccMedian.npy", reduced_training_vectors)
 
-        # Save reduced vectors for later use
-        np.save("10000reduced_vectors_groupByAbsDiffMedianGPUAcc.npy", reduced_vectors)
-        np.save("../words.npy", np.array(words))
-        print("\nReduction completed. Reduced vectors saved to files.")
+        print("\nLoading testing vectors:")
+        test_vectors = np.load(testing_file)
+
+        print("\nReducing dimensions of testing set:")
+        reduced_testing_vectors = apply_grouping_to_testing_set(test_vectors, groups)
+
+        np.save("100testing_reduced_vectors_groupByAbsDiffGPUAccMedian.npy", reduced_testing_vectors)

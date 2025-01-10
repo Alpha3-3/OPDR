@@ -87,7 +87,7 @@ if __name__ == "__main__":
         vector_array = np.array(list(vectors.values()))
 
         # Perform custom dimension reduction on training set
-        target_dimensions = 30
+        target_dimensions = 150
         reduced_vectors, top_indices = preserve_top_dimensions(vector_array, top_dimensions=target_dimensions, top_exclude=50)
 
         # Save reduced training vectors
