@@ -125,7 +125,7 @@ if __name__ == "__main__":
         vector_array = make_non_negative(vector_array)
 
         # Specify the target dimension
-        target_dimension = 30  # Adjust this as necessary
+        target_dimension = 150  # Adjust this as necessary
 
         # Group dimensions and reduce training set
         reduced_training_vectors, groups = group_dimensions(vector_array, target_dimension)

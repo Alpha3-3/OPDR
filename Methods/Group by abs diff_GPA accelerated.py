@@ -2,6 +2,7 @@ import numpy as np
 import pyopencl as cl
 from tqdm import tqdm
 import os
+import matplotlib.pyplot as plt
 
 os.environ["PYOPENCL_COMPILER_OUTPUT"] = "1"
 
@@ -54,29 +55,29 @@ def reduce_dimensions_by_grouping_opencl(vectors, num_groups):
 
     # Kernel for computing average absolute differences for each dimension
     kernel_code = """
-    __kernel void calc_avg_abs_diff(__global const float *vectors, __global float *avg_abs_diffs, int m, int n) {
+    __kernel void calc_avg_pairwise_abs_diff(__global const float *vectors, __global float *avg_abs_diffs, int m, int n) {
         int dim = get_global_id(0);  // Current dimension
-
+    
         if (dim >= n) return;
-
+    
         float sum_diff = 0.0f;
-
-        // Compute mean of the current dimension
-        float mean_dim = 0.0f;
+        int pair_count = 0;
+    
+        // Iterate over all unique pairs (i, j) where i < j
         for (int i = 0; i < m; ++i) {
-            mean_dim += vectors[i * n + dim];
+            for (int j = i + 1; j < m; ++j) {
+                float diff = fabs(vectors[i * n + dim] - vectors[j * n + dim]);
+                sum_diff += diff;
+                pair_count++;
+            }
         }
-        mean_dim /= m;
-
-        // Compute sum of absolute differences from the mean
-        for (int i = 0; i < m; ++i) {
-            float diff = fabs(vectors[i * n + dim] - mean_dim);
-            sum_diff += diff;
-        }
-
-        avg_abs_diffs[dim] = sum_diff / m;
+    
+        // Compute the mean of pairwise absolute differences
+        avg_abs_diffs[dim] = sum_diff / pair_count;
     }
+
     """
+    # Build the OpenCL program
     program = cl.Program(context, kernel_code).build()
 
     # Create buffers
@@ -86,11 +87,26 @@ def reduce_dimensions_by_grouping_opencl(vectors, num_groups):
 
     # Execute the kernel to compute average absolute differences
     global_size = (n,)  # Process all dimensions
-    program.calc_avg_abs_diff(queue, global_size, None, vectors_buf, avg_abs_diffs_buf, np.int32(m), np.int32(n))
+    program.calc_avg_pairwise_abs_diff(queue, global_size, None, vectors_buf, avg_abs_diffs_buf, np.int32(m), np.int32(n))
 
     # Retrieve the average absolute differences
     cl.enqueue_copy(queue, avg_abs_diffs, avg_abs_diffs_buf)
     queue.finish()
+
+    # Plotting average absolute differences
+    plt.figure(figsize=(12, 6))
+    plt.plot(range(len(avg_abs_diffs)), avg_abs_diffs, marker='o', linestyle='-', color='b', alpha=0.7)
+    plt.title('Average Absolute Differences for Each Dimension', fontsize=14)
+    plt.xlabel('Dimension Index', fontsize=12)
+    plt.ylabel('Average Absolute Difference', fontsize=12)
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.7)
+    plt.tight_layout()
+
+    # Save the plot as an image (optional)
+    plt.savefig("average_abs_diff_plot.png", dpi=300)
+
+    # Show the plot
+    # plt.show()
 
     # Sort dimensions by average absolute differences in descending order
     sorted_indices = np.argsort(-avg_abs_diffs)
@@ -105,7 +121,7 @@ def reduce_dimensions_by_grouping_opencl(vectors, num_groups):
         # Find the group with the smallest total sum
         min_group = np.argmin(group_sums)
         groups[min_group].append(idx)
-        group_sums[min_group] += avg
+        group_sums[min_group] += avg**2
 
     # Create reduced vectors based on groups
     reduced_vectors = np.zeros((m, num_groups), dtype=np.float32)
