@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/fasttext test.iml" filepath="$PROJECT_DIR$/fasttext test.iml" />
+      <module fileurl="file://$PROJECT_DIR$/PCA vs DW-PMAD.iml" filepath="$PROJECT_DIR$/PCA vs DW-PMAD.iml" />
     </modules>
   </component>
 </project>
