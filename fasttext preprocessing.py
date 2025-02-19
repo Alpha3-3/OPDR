@@ -144,7 +144,7 @@ def plot_dimension_stats(dimension_stats, title_suffix="", label_extremes=False,
 # File path
 filename = r'D:\My notes\UW\HPDIC Lab\OPDR\wiki-news-300d-1M\wiki-news-300d-1M-sampled.vec'
 
-# Load the vectors
+# Load vectors
 vectors = load_vectors(filename)
 
 if vectors:
