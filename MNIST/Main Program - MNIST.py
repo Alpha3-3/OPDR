@@ -111,12 +111,12 @@ def process_parameters(params, results_list):
 # Parameter settings
 b_values = [50,70,85, 100]
 k_values = [3,6, 10,15]
-alpha_values = [1,5,10,25]
-dimensions = [50] # 299
-target_dims = [0.2,0.4, 0.6, 0.8]
+alpha_values = [1,5,10,25,50]
+dimensions = [50] # 617?
+target_dims = [0.1,0.2, 0.4, 0.6]
 
 # Load data
-training_vectors = load_vectors('training_vectors_600.npy')
+training_vectors = load_vectors('training_vectors_300.npy')
 testing_vectors = load_vectors('testing_vectors_1000.npy')
 
 # Generate all unique parameter combinations
@@ -132,6 +132,6 @@ if __name__ == '__main__':
 
     # Convert results to DataFrame and export
     results_df = pd.DataFrame(list(results_list), columns=['Dimension', 'Target Ratio', 'b', 'alpha', 'k', 'DW-PMAD Accuracy', 'PCA Accuracy', 'Better Method'])
-    results_df.to_csv('parameter_sweep_results.csv', index=False)
+    results_df.to_csv('parameter_sweep_results_MNIST.csv', index=False)
     print(results_df)
-    print("Results exported to 'parameter_sweep_results.csv'")
+    print("Results exported to 'parameter_sweep_results_CIFAR-10.csv'")
