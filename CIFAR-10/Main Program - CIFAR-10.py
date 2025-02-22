@@ -25,24 +25,19 @@ def dw_pmad_b(w, X, b):
     num_pairs = len(abs_diffs)
     top_b_count = min(num_pairs - 1, max(1, int((b / 100) * num_pairs)))
 
+    # Debugging output
+
     return -np.mean(np.partition(abs_diffs, top_b_count)[:top_b_count])  # Partial sort
 
-
-    # Orthogonality constraint
+# Orthogonality constraint
 def orthogonality_constraint(w, prev_ws, alpha):
-    prev_ws = np.array(prev_ws)  # Convert to NumPy array
-    if prev_ws.size == 0:
-        return 0
-    dot_products = np.dot(prev_ws, w) ** 2  # Efficient vectorized computation
-    return np.sum(dot_products)
-
+    return sum((np.dot(w, prev_w) ** 2) for prev_w in prev_ws)
 
 
 # Optimized DW-PMAD
 def dw_pmad(X, b, alpha, target_dim):
     X_centered = X - np.mean(X, axis=0)
-    prev_ws = []
-    optimal_ws = np.zeros((X.shape[1], target_dim))
+    prev_ws, optimal_ws = [], []
 
     for axis in range(target_dim):
         def constrained_dw_pmad(w):
@@ -52,9 +47,11 @@ def dw_pmad(X, b, alpha, target_dim):
         optimal_w = result.x / np.linalg.norm(result.x)
 
         prev_ws.append(optimal_w)
-        optimal_ws[:, axis] = optimal_w  # Store directly in NumPy array
+        optimal_ws.append(optimal_w)
 
-    return X_centered @ optimal_ws, optimal_ws
+        # print(f"DW-PMAD axis {axis + 1}/{target_dim} computed successfully.")
+
+    return X_centered @ np.column_stack(optimal_ws), np.column_stack(optimal_ws)
 
 
 # Project test data using stored DW-PMAD axes
@@ -64,20 +61,21 @@ def project_dw_pmad(X, projection_axes):
 
 # Accuracy calculation
 def calculate_accuracy(original_data, reduced_data, new_original_data, new_reduced_data, k):
-    nbrs_original = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(original_data)
-    nbrs_reduced = NearestNeighbors(n_neighbors=k, algorithm='ball_tree').fit(reduced_data)
+    nbrs_original = NearestNeighbors(n_neighbors=k).fit(original_data)
+    nbrs_reduced = NearestNeighbors(n_neighbors=k).fit(reduced_data)
 
-    original_neighbors = nbrs_original.kneighbors(new_original_data, return_distance=False)
-    reduced_neighbors = nbrs_reduced.kneighbors(new_reduced_data, return_distance=False)
-
-    total_matches = np.sum([len(set(original_neighbors[i]) & set(reduced_neighbors[i])) for i in range(len(new_original_data))])
+    total_matches = sum(
+        len(set(nbrs_original.kneighbors(new_original_data[i].reshape(1, -1), return_distance=False)[0]) &
+            set(nbrs_reduced.kneighbors(new_reduced_data[i].reshape(1, -1), return_distance=False)[0]))
+        for i in range(len(new_original_data))
+    )
 
     return total_matches / (len(new_original_data) * k)
 
 
 # Worker function for multiprocessing
-def process_parameters(params):
-    dim, target_ratio, b, alpha = params  # Unpack tuple here
+def process_parameters(params, results_list):
+    dim, target_ratio, b, alpha = params
     target_dim = max(1, int(dim * target_ratio))
     print(f"Processing: Dimension={dim}, Target Ratio={target_ratio}, b={b}, alpha={alpha}, Target Dim={target_dim}")
 
@@ -99,7 +97,7 @@ def process_parameters(params):
     new_dw_pmad = project_dw_pmad(X_test, dw_pmad_axes)
     new_pca = pca.transform(X_test)
 
-    results = []  # Collect results in a local list
+    # Store results for different k-values
     for k in k_values:
         acc_dw_pmad = calculate_accuracy(X_train, X_dw_pmad, X_test, new_dw_pmad, k)
         acc_pca = calculate_accuracy(X_train, X_pca, X_test, new_pca, k)
@@ -107,20 +105,18 @@ def process_parameters(params):
         better_method = 'dw_pmad' if acc_dw_pmad > acc_pca else 'pca'
         print(f"Results for dim={dim}, target_ratio={target_ratio}, b={b}, alpha={alpha}, k={k}: DW-PMAD Accuracy={acc_dw_pmad}, PCA Accuracy={acc_pca}, Better Method={better_method}")
 
-        results.append([dim, target_ratio, b, alpha, k, acc_dw_pmad, acc_pca, better_method])
-
-    return results  # Return the results instead of appending to a shared list
+        results_list.append([dim, target_ratio, b, alpha, k, acc_dw_pmad, acc_pca, better_method])
 
 
 # Parameter settings
 b_values = [50,70,85, 100]
 k_values = [3,6, 10,15]
-alpha_values = [1,5,10,25]
-dimensions = [10] # 299
-target_dims = [0.2,0.4, 0.6, 0.8]
+alpha_values = [1,5,10,25,50]
+dimensions = [50] # 617?
+target_dims = [0.1,0.2, 0.4, 0.6]
 
 # Load data
-training_vectors = load_vectors('training_vectors_600.npy')
+training_vectors = load_vectors('training_vectors_300.npy')
 testing_vectors = load_vectors('testing_vectors_1000.npy')
 
 # Generate all unique parameter combinations
@@ -128,13 +124,14 @@ param_combinations = list(itertools.product(dimensions, target_dims, b_values, a
 
 # Use multiprocessing to parallelize
 if __name__ == '__main__':
-    with mp.Pool(processes=mp.cpu_count() - 1) as pool:
-        results_list = pool.map(process_parameters, param_combinations)  # Use `map`, not `starmap`
+    manager = mp.Manager()
+    results_list = manager.list()
 
-    # Flatten list of lists
-    flat_results = [item for sublist in results_list if sublist is not None for item in sublist]
+    with mp.Pool(processes=mp.cpu_count()) as pool:
+        pool.starmap(process_parameters, [(params, results_list) for params in param_combinations])
 
-    # Convert to DataFrame and export
-    results_df = pd.DataFrame(flat_results, columns=['Dimension', 'Target Ratio', 'b', 'alpha', 'k', 'DW-PMAD Accuracy', 'PCA Accuracy', 'Better Method'])
-    results_df.to_csv('parameter_sweep_results_fasttext1.csv', index=False)
+    # Convert results to DataFrame and export
+    results_df = pd.DataFrame(list(results_list), columns=['Dimension', 'Target Ratio', 'b', 'alpha', 'k', 'DW-PMAD Accuracy', 'PCA Accuracy', 'Better Method'])
+    results_df.to_csv('parameter_sweep_results_CIFAR-10.csv', index=False)
     print(results_df)
+    print("Results exported to 'parameter_sweep_results_CIFAR-10.csv'")
