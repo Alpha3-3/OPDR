@@ -107,11 +107,11 @@ def process_parameters(params, results_list):
         results_list.append([dim, target_ratio, b, alpha, k, acc_dw_pmad, acc_pca, better_method])
 
 # Parameter settings
-b_values = [50, 65, 75,85, 100]
+b_values = [50, 70, 85, 100]
 k_values = [3, 6, 10, 15]
-alpha_values = [1, 5, 10, 25, 35,50]
-dimensions = [50]  # Example dimension; adjust as needed
-target_dims = [0.05, 0.1, 0.2, 0.4, 0.6]
+alpha_values = [1, 5, 10, 25, 50]
+dimensions = [28]  # Example dimension; adjust as needed
+target_dims = [0.1, 0.2, 0.4, 0.6]
 
 # Load data
 training_vectors = load_vectors('training_vectors_300.npy')
@@ -132,6 +132,6 @@ if __name__ == '__main__':
     results_df = pd.DataFrame(list(results_list),
                               columns=['Dimension', 'Target Ratio', 'b', 'alpha', 'k',
                                        'DW-PMAD Accuracy', 'PCA Accuracy', 'Better Method'])
-    results_df.to_csv('parameter_sweep_results_CIFAR-10.csv', index=False)
+    results_df.to_csv('parameter_sweep_results_Higgs.csv', index=False)
     print(results_df)
-    print("Results exported to 'parameter_sweep_results_CIFAR-10.csv'")
+    print("Results exported to 'parameter_sweep_results_Higgs.csv'")
