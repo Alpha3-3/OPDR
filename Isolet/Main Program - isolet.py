@@ -79,41 +79,57 @@ def process_parameters(params, results_list):
     target_dim = max(1, int(dim * target_ratio))
     print(f"Processing: Dimension={dim}, Target Ratio={target_ratio}, b={b}, alpha={alpha}, Target Dim={target_dim}")
 
-    X_train = training_vectors[:, :dim]
-    X_test = testing_vectors[:, :dim]
+    # Set a seed for reproducibility
+    np.random.seed(1)
 
-    # Compute DW-PMAD
+    # Determine the total number of dimensions (columns)
+    total_dims = training_vectors.shape[1]
+    # Randomly select 'dim' unique indices from the available dimensions
+    selected_dims = np.random.choice(total_dims, size=dim, replace=False)
+    # Extract the chosen dimensions for both training and testing sets
+    X_train = training_vectors[:, selected_dims]
+    X_test = testing_vectors[:, selected_dims]
+
+    # --- Standardization Process ---
+    # Compute training statistics
+    train_mean = np.mean(X_train, axis=0)
+    train_std = np.std(X_train, axis=0)
+    # Avoid division by zero
+    train_std[train_std == 0] = 1
+    # Standardize both training and test sets using training data statistics
+    X_train_standardized = (X_train - train_mean) / train_std
+    X_test_standardized = (X_test - train_mean) / train_std
+    # --------------------------------
+
     print(f"Starting DW-PMAD for Dimension={dim}, Target Ratio={target_ratio}, b={b}, alpha={alpha}")
-    X_dw_pmad, dw_pmad_axes = dw_pmad(X_train, b, alpha, target_dim)
+    X_dw_pmad, dw_pmad_axes = dw_pmad(X_train_standardized, b, alpha, target_dim)
     print(f"DW-PMAD complete for Dimension={dim}, Target Ratio={target_ratio}, b={b}, alpha={alpha}")
 
-    # Compute PCA
     print(f"Starting PCA for Dimension={dim}, Target Ratio={target_ratio}")
-    pca = PCA(n_components=target_dim).fit(X_train)
-    X_pca = pca.transform(X_train)
+    pca = PCA(n_components=target_dim).fit(X_train_standardized)
+    X_pca = pca.transform(X_train_standardized)
     print(f"PCA complete for Dimension={dim}, Target Ratio={target_ratio}")
 
-    # Transform test data
-    new_dw_pmad = project_dw_pmad(X_test, dw_pmad_axes)
-    new_pca = pca.transform(X_test)
+    # Transform test data using the stored DW-PMAD axes and PCA
+    new_dw_pmad = project_dw_pmad(X_test_standardized, dw_pmad_axes)
+    new_pca = pca.transform(X_test_standardized)
 
     # Store results for different k-values
     for k in k_values:
-        acc_dw_pmad = calculate_accuracy(X_train, X_dw_pmad, X_test, new_dw_pmad, k)
-        acc_pca = calculate_accuracy(X_train, X_pca, X_test, new_pca, k)
-
+        acc_dw_pmad = calculate_accuracy(X_train_standardized, X_dw_pmad, X_test_standardized, new_dw_pmad, k)
+        acc_pca = calculate_accuracy(X_train_standardized, X_pca, X_test_standardized, new_pca, k)
         better_method = 'dw_pmad' if acc_dw_pmad > acc_pca else 'pca'
-        print(f"Results for dim={dim}, target_ratio={target_ratio}, b={b}, alpha={alpha}, k={k}: DW-PMAD Accuracy={acc_dw_pmad}, PCA Accuracy={acc_pca}, Better Method={better_method}")
-
+        print(f"Results for dim={dim}, target_ratio={target_ratio}, b={b}, alpha={alpha}, k={k}: "
+              f"DW-PMAD Accuracy={acc_dw_pmad}, PCA Accuracy={acc_pca}, Better Method={better_method}")
         results_list.append([dim, target_ratio, b, alpha, k, acc_dw_pmad, acc_pca, better_method])
 
 
 # Parameter settings
-b_values = [50,70,85, 100]
+b_values = [35,50,70,85, 100]
 k_values = [3,6, 10,15]
-alpha_values = [1,5,10,15,25]
+alpha_values = [1,5,10,15,25,50]
 dimensions = [50] # 617?
-target_dims = [0.1,0.2, 0.4, 0.6]
+target_dims = [0.05, 0.1,0.2, 0.4, 0.6]
 
 # Load data
 training_vectors = load_vectors('training_vectors_300.npy')
@@ -132,6 +148,6 @@ if __name__ == '__main__':
 
     # Convert results to DataFrame and export
     results_df = pd.DataFrame(list(results_list), columns=['Dimension', 'Target Ratio', 'b', 'alpha', 'k', 'DW-PMAD Accuracy', 'PCA Accuracy', 'Better Method'])
-    results_df.to_csv('parameter_sweep_results_CIFAR-10.csv', index=False)
+    results_df.to_csv('parameter_sweep_results_Isolet.csv', index=False)
     print(results_df)
     print("Results exported to 'parameter_sweep_results_CIFAR-10.csv'")
