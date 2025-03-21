@@ -8,43 +8,58 @@ from sklearn.neighbors import NearestNeighbors
 from scipy.spatial.distance import pdist
 from tqdm import tqdm
 
+
 # Load pre-trained vectors
 def load_vectors(file_path):
     return np.load(file_path)
 
+
 # DW-PMAD calculation
+# Optimized DW-PMAD calculation
 def dw_pmad_b(w, X, b):
     w = w / np.linalg.norm(w)  # Normalize direction vector
     projections = X @ w
     abs_diffs = pdist(projections.reshape(-1, 1))  # Efficient pairwise differences
 
+    # Compute top_b_count with bounds check
     num_pairs = len(abs_diffs)
     top_b_count = min(num_pairs - 1, max(1, int((b / 100) * num_pairs)))
+
+    # Debugging output
+
     return -np.mean(np.partition(abs_diffs, top_b_count)[:top_b_count])  # Partial sort
 
 # Orthogonality constraint
 def orthogonality_constraint(w, prev_ws, alpha):
     return sum((np.dot(w, prev_w) ** 2) for prev_w in prev_ws)
 
-# In this version, X is assumed to be standardized already.
+
+# Optimized DW-PMAD
 def dw_pmad(X, b, alpha, target_dim):
+    X_centered = X - np.mean(X, axis=0)
     prev_ws, optimal_ws = [], []
+
     for axis in range(target_dim):
         def constrained_dw_pmad(w):
-            return dw_pmad_b(w, X, b) + alpha * orthogonality_constraint(w, prev_ws, alpha)
+            return dw_pmad_b(w, X_centered, b) + alpha * orthogonality_constraint(w, prev_ws, alpha)
+
         result = minimize(constrained_dw_pmad, np.random.randn(X.shape[1]), method='L-BFGS-B')
         optimal_w = result.x / np.linalg.norm(result.x)
+
         prev_ws.append(optimal_w)
         optimal_ws.append(optimal_w)
-    # Project the data using the computed axes
-    return X @ np.column_stack(optimal_ws), np.column_stack(optimal_ws)
 
-# Project test data using stored DW-PMAD axes.
-# (Now X is already standardized, so we do not subtract the mean again.)
+        # print(f"DW-PMAD axis {axis + 1}/{target_dim} computed successfully.")
+
+    return X_centered @ np.column_stack(optimal_ws), np.column_stack(optimal_ws)
+
+
+# Project test data using stored DW-PMAD axes
 def project_dw_pmad(X, projection_axes):
-    return X @ projection_axes
+    return (X - np.mean(X, axis=0)) @ projection_axes
 
-# Accuracy calculation remains the same.
+
+# Accuracy calculation
 def calculate_accuracy(original_data, reduced_data, new_original_data, new_reduced_data, k):
     nbrs_original = NearestNeighbors(n_neighbors=k).fit(original_data)
     nbrs_reduced = NearestNeighbors(n_neighbors=k).fit(reduced_data)
@@ -54,7 +69,9 @@ def calculate_accuracy(original_data, reduced_data, new_original_data, new_reduc
             set(nbrs_reduced.kneighbors(new_reduced_data[i].reshape(1, -1), return_distance=False)[0]))
         for i in range(len(new_original_data))
     )
+
     return total_matches / (len(new_original_data) * k)
+
 
 # Worker function for multiprocessing
 def process_parameters(params, results_list):
@@ -106,16 +123,17 @@ def process_parameters(params, results_list):
               f"DW-PMAD Accuracy={acc_dw_pmad}, PCA Accuracy={acc_pca}, Better Method={better_method}")
         results_list.append([dim, target_ratio, b, alpha, k, acc_dw_pmad, acc_pca, better_method])
 
+
 # Parameter settings
-b_values = [50, 65, 75,85, 100]
-k_values = [3, 6, 10, 15]
-alpha_values = [1, 5, 10, 25, 35,50]
-dimensions = [50]  # Example dimension; adjust as needed
-target_dims = [0.05, 0.1, 0.2, 0.4, 0.6]
+b_values = [35,50,70,85, 100]
+k_values = [3,6, 10,15]
+alpha_values = [1,5,10,15,25,50]
+dimensions = [50] # 617?
+target_dims = [0.05, 0.1,0.2, 0.4, 0.6]
 
 # Load data
-training_vectors = load_vectors('training_vectors_300_CIFAR-10.npy')
-testing_vectors = load_vectors('testing_vectors_1000_CIFAR-10.npy')
+training_vectors = load_vectors('training_vectors_300_Isolet.npy')
+testing_vectors = load_vectors('testing_vectors_1000_Isolet.npy')
 
 # Generate all unique parameter combinations
 param_combinations = list(itertools.product(dimensions, target_dims, b_values, alpha_values))
@@ -129,9 +147,7 @@ if __name__ == '__main__':
         pool.starmap(process_parameters, [(params, results_list) for params in param_combinations])
 
     # Convert results to DataFrame and export
-    results_df = pd.DataFrame(list(results_list),
-                              columns=['Dimension', 'Target Ratio', 'b', 'alpha', 'k',
-                                       'DW-PMAD Accuracy', 'PCA Accuracy', 'Better Method'])
-    results_df.to_csv('parameter_sweep_results_CIFAR-10_Multiple_methods.csv', index=False)
+    results_df = pd.DataFrame(list(results_list), columns=['Dimension', 'Target Ratio', 'b', 'alpha', 'k', 'DW-PMAD Accuracy', 'PCA Accuracy', 'Better Method'])
+    results_df.to_csv('parameter_sweep_results_Isolet.csv', index=False)
     print(results_df)
     print("Results exported to 'parameter_sweep_results_CIFAR-10_Multiple_methods.csv'")

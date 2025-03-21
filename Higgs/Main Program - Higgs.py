@@ -16,7 +16,7 @@ def load_vectors(file_path):
 def dw_pmad_b(w, X, b):
     w = w / np.linalg.norm(w)  # Normalize direction vector
     projections = X @ w
-    abs_diffs = pdist(projections.reshape(-1, 1))  # Efficient pairwise differences
+    abs_diffs = pdist(projections.reshape(-1, 1))  # Efficient pairwise differences，L2 here
 
     num_pairs = len(abs_diffs)
     top_b_count = min(num_pairs - 1, max(1, int((b / 100) * num_pairs)))
@@ -114,8 +114,8 @@ dimensions = [28]  # Example dimension; adjust as needed
 target_dims = [0.1, 0.2, 0.4, 0.6]
 
 # Load data
-training_vectors = load_vectors('training_vectors_300.npy')
-testing_vectors = load_vectors('testing_vectors_1000.npy')
+training_vectors = load_vectors('training_vectors_300_HIggs.npy')
+testing_vectors = load_vectors('testing_vectors_1000_Higgs.npy')
 
 # Generate all unique parameter combinations
 param_combinations = list(itertools.product(dimensions, target_dims, b_values, alpha_values))
