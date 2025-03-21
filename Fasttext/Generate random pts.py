@@ -4,14 +4,14 @@ import os
 from tqdm import tqdm
 
 # Set random seed for reproducibility
-random.seed(1)  # Any fixed integer value
-np.random.seed(1)  # Ensures consistency across numpy operations
+random.seed(2)  # Any fixed integer value
+np.random.seed(2)  # Ensures consistency across numpy operations
 
 # Path to the .vec file
 vec_file_path = r'D:\My notes\UW\HPDIC Lab\OPDR\datasets\wiki-news-300d-1M.vec'
 
 # Number of points to select
-num_points = 1000
+num_points = 600
 
 # Ensure the file exists
 if not os.path.exists(vec_file_path):
@@ -41,7 +41,7 @@ selected_indices = random.sample(range(len(vectors)), num_points)
 selected_vectors = vectors[selected_indices]
 
 # Save selected vectors to a .npy file
-npy_file_path = 'testing_vectors_1000.npy'
+npy_file_path = 'testing_vectors_600_Fasttext.npy'
 np.save(npy_file_path, selected_vectors)
 
 print("Vectors have been selected and saved successfully.")

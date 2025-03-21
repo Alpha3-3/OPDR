@@ -116,8 +116,8 @@ dimensions = [50] # 299
 target_dims = [0.2,0.4, 0.6, 0.8]
 
 # Load data
-training_vectors = load_vectors('training_vectors_600.npy')
-testing_vectors = load_vectors('testing_vectors_1000.npy')
+training_vectors = load_vectors('training_vectors_600_Fasttext.npy')
+testing_vectors = load_vectors('testing_vectors_1000_Fasttext.npy')
 
 # Generate all unique parameter combinations
 param_combinations = list(itertools.product(dimensions, target_dims, b_values, alpha_values))

@@ -4,8 +4,8 @@ import os
 from tqdm import tqdm
 
 # Set random seeds for reproducibility
-random.seed(1)
-np.random.seed(1)
+random.seed(2)
+np.random.seed(2)
 
 # Path to the CSV file
 csv_file_path = r'D:\My notes\UW\HPDIC Lab\OPDR\datasets\HIGGS.csv'
@@ -31,7 +31,7 @@ with open(csv_file_path, 'r') as f:
 data = np.array(data_list)
 
 # Number of rows (points) to randomly select
-num_points = 300
+num_points = 600
 if data.shape[0] < num_points:
     raise ValueError("The CSV file does not contain enough rows.")
 
@@ -45,13 +45,18 @@ for idx in tqdm(selected_indices, desc="Selecting random points"):
 selected_points = np.array(selected_points)
 
 # Save the selected points to a .npy file
-output_file = 'training_vectors_300.npy'
+output_file = 'testing_vectors_600_Higgs.npy'
 np.save(output_file, selected_points)
 
 print("Selected random points have been saved successfully to", output_file)
+
+# Set random seeds for reproducibility
+random.seed(1)
+np.random.seed(1)
+
 
 # Number of rows (points) to randomly select
-num_points = 1000
+num_points = 600
 if data.shape[0] < num_points:
     raise ValueError("The CSV file does not contain enough rows.")
 
@@ -65,7 +70,8 @@ for idx in tqdm(selected_indices, desc="Selecting random points"):
 selected_points = np.array(selected_points)
 
 # Save the selected points to a .npy file
-output_file = 'testing_vectors_1000.npy'
+output_file = 'training_vectors_600_Higgs.npy'
 np.save(output_file, selected_points)
 
 print("Selected random points have been saved successfully to", output_file)
+

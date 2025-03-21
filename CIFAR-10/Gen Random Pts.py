@@ -10,6 +10,7 @@ def unpickle(file):
     return data_dict
 
 # Set random seeds for reproducibility
+# 1 for training, 2 for testing
 random.seed(1)
 np.random.seed(1)
 
@@ -26,7 +27,7 @@ data_dict = unpickle(data_batch_path)
 images = data_dict[b'data']  # shape: (10000, 3072)
 
 # Number of images to randomly select
-num_points = 1000
+num_points = 600
 if images.shape[0] < num_points:
     raise ValueError("The batch does not contain enough images.")
 
@@ -35,7 +36,7 @@ selected_indices = random.sample(range(images.shape[0]), num_points)
 selected_images = images[selected_indices]
 
 # Save the selected images to a .npy file
-output_file = 'testing_vectors_1000.npy'
+output_file = 'training_vectors_600_CIFAR-10.npy'
 np.save(output_file, selected_images)
 
 print("Selected vectors have been saved successfully to", output_file)

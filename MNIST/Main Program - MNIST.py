@@ -116,8 +116,8 @@ dimensions = [50] # 617?
 target_dims = [0.1,0.2, 0.4, 0.6]
 
 # Load data
-training_vectors = load_vectors('training_vectors_300.npy')
-testing_vectors = load_vectors('testing_vectors_1000.npy')
+training_vectors = load_vectors('training_vectors_300_CIFAR-10.npy')
+testing_vectors = load_vectors('testing_vectors_1000_CIFAR-10.npy')
 
 # Generate all unique parameter combinations
 param_combinations = list(itertools.product(dimensions, target_dims, b_values, alpha_values))
@@ -134,4 +134,4 @@ if __name__ == '__main__':
     results_df = pd.DataFrame(list(results_list), columns=['Dimension', 'Target Ratio', 'b', 'alpha', 'k', 'DW-PMAD Accuracy', 'PCA Accuracy', 'Better Method'])
     results_df.to_csv('parameter_sweep_results_MNIST.csv', index=False)
     print(results_df)
-    print("Results exported to 'parameter_sweep_results_CIFAR-10.csv'")
+    print("Results exported to 'parameter_sweep_results_CIFAR-10_Multiple_methods.csv'")

@@ -11,7 +11,7 @@ np.random.seed(1)  # Ensures consistency across numpy operations
 vec_file_path = 'isolet dataset/isolet1+2+3+4.data'
 
 # Number of points to select
-num_points = 1000
+num_points = 600
 
 # Ensure the file exists
 if not os.path.exists(vec_file_path):
@@ -39,7 +39,7 @@ selected_indices = random.sample(range(len(vectors)), num_points)
 selected_vectors = vectors[selected_indices]
 
 # Save selected vectors to a .npy file
-npy_file_path = 'testing_vectors_1000.npy'
+npy_file_path = 'training_vectors_600_Isolet.npy'
 np.save(npy_file_path, selected_vectors)
 
 print("Vectors have been selected and saved successfully.")
