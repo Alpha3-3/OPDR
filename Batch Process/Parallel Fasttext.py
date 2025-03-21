@@ -288,7 +288,7 @@ def process_parameters(params, test_results_list, use_dw_pmad):
 # ------------------------------
 
 # Parameter settings
-b_values = [80]      # Used if DW-PMAD is enabled
+b_values = [60,70,80,90,100]      # Used if DW-PMAD is enabled
 k_values = [1, 3, 6, 10, 15]
 alpha_values = [1,12,25,35,50,10000]       # Used if DW-PMAD is enabled
 dimensions = [298]         # Example dimension; adjust as needed
