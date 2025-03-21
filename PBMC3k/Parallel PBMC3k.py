@@ -13,7 +13,7 @@ from sklearn.linear_model import LinearRegression
 from sklearn.decomposition import KernelPCA
 from sklearn.manifold import Isomap
 import umap  # Standard import; ensure this is from umap-learn
-## FULLY PARALLEL
+
 # ---------------------------------------------------------
 # GLOBAL POOL & HELPER FUNCTIONS FOR PARALLEL DISTANCE
 # ---------------------------------------------------------
@@ -311,12 +311,12 @@ def process_parameters(params, test_results_list, use_dw_pmad):
 b_values = [60,70,80,90,100]
 k_values = [1, 3, 6, 10, 15]
 alpha_values = [1, 6, 12, 18, 25, 35, 50, 10000]  # Used if DW-PMAD is enabled
-dimensions = [200]  # Example dimension
+dimensions = [250]  # Example dimension
 target_dims = [0.05, 0.1, 0.2, 0.4, 0.6]
 
 # Load data
-training_vectors = load_vectors('training_vectors_600_Isolet.npy')
-testing_vectors = load_vectors('testing_vectors_600_Isolet.npy')
+training_vectors = load_vectors('training_vectors_600_PBMC3k.npy')
+testing_vectors = load_vectors('testing_vectors_600_PBMC3k.npy')
 
 if __name__ == '__main__':
     total_start = time.perf_counter()
@@ -355,9 +355,9 @@ if __name__ == '__main__':
 
     # Save test results
     test_results_df = pd.DataFrame(test_results_list, columns=columns)
-    test_results_df.to_csv('parameter_sweep_results_Isolet_Multiple_methods100.csv', index=False)
+    test_results_df.to_csv('parameter_sweep_results_PBMC3k_Multiple_methods100.csv', index=False)
     print(test_results_df)
-    print("Test results exported to 'parameter_sweep_results_Isolet_Multiple_methods.csv'")
+    print("Test results exported to 'parameter_sweep_results_PBMC3k_Multiple_methods.csv'")
 
     total_time = time.perf_counter() - total_start
     print(f"Total time is {total_time:.4f}s")
