@@ -6,7 +6,7 @@ def load_vectors(file_path):
     return np.load(file_path)
 
 training_vectors = load_vectors('training_vectors_600_Fasttext.npy')
-testing_vectors = load_vectors('testing_vectors_1000_Fasttext.npy')
+testing_vectors = load_vectors('testing_vectors_600_Fasttext.npy')
 
 # Print statistics of the vectors
 print("Training Vectors Description:")

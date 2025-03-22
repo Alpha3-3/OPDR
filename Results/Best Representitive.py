@@ -5,9 +5,8 @@ import numpy as np
 # -------------------------------
 # 1. Load the data.
 # -------------------------------
-csv_path = "parameter_sweep_results_Fasttext_Multiple_methods1.csv"
+csv_path = "parameter_sweep_results_Isolet_Multiple_methods100.csv"
 df = pd.read_csv(csv_path)
-df = df[df['Dimension'] == 298].copy()
 
 # -------------------------------
 # 2. Define the accuracy columns (methods).

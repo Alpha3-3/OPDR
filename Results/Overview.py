@@ -4,7 +4,7 @@ import numpy as np
 import math
 
 # Load the data
-df = pd.read_csv("parameter_sweep_results_Fasttext_Multiple_methods1.csv")
+df = pd.read_csv("parameter_sweep_results_Isolet_Multiple_methods100.csv")
 
 # Define the accuracy columns
 accuracy_columns = [
