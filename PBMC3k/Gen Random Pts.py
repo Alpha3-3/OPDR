@@ -13,7 +13,7 @@ else:
 # Filter rows: keep only those vectors (rows) where ALL dimensions are valid (not NaN)
 valid_mask = np.all(~np.isnan(X), axis=1)
 X_valid = X[valid_mask]
-
+print(X_valid.shape)
 # Set a random seed for reproducibility
 random_seed = 1
 np.random.seed(random_seed)

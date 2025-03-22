@@ -20,9 +20,9 @@ def run_programs(program_list):
 if __name__ == '__main__':
     # Define the list of Python scripts to run
     programs = [
-        'Main Program - Higgs.py',
-        'Main Program - CIFAR-10.py',
-        'Main Program - Isolet.py',
-        'Main Program - Fasttext.py'
+        'Parallel CIFAR-10.py',
+        'Parallel Isolet.py',
+        'Parallel Fasttext.py',
+        'Parallel PBMC3k'
     ]
     run_programs(programs)

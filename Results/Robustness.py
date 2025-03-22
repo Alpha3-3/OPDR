@@ -5,10 +5,8 @@ import numpy as np
 # ---------------------------------------------------
 # 1. Load the CSV table
 # ---------------------------------------------------
-csv_path = "parameter_sweep_results_Fasttext_Multiple_methods1.csv"
+csv_path = "parameter_sweep_results_Isolet_Multiple_methods100.csv"
 df = pd.read_csv(csv_path)
-# We assume Dimension==298 throughout.
-df = df[df['Dimension'] == 298].copy()
 
 # ---------------------------------------------------
 # 2. How is the average accuracy calculated?
