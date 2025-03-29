@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 #--------------------------------------------------
 # 1. Load the entire table into a DataFrame
 #--------------------------------------------------
-csv_path = "parameter_sweep_results_Isolet_Multiple_methods100.csv"
+csv_path = "parameter_sweep_results_Fasttext_Multiple_methods.csv"
 df = pd.read_csv(csv_path)
 
 
@@ -29,13 +29,28 @@ def ablation_dw_pmad_score(df, baseline, ablated_params=['k','Target Ratio','b',
 # 3. Find the best baseline combination
 #    (one that maximizes the fraction of times dw_pmad is best)
 #--------------------------------------------------
-unique_k      = df['k'].unique()
+unique_k = [k for k in df['k'].unique() if k != 1]
 unique_tr     = df['Target Ratio'].unique()
 unique_b      = df['b'].unique()
 unique_alpha  = df['alpha'].unique()
 
+def ablation_dw_pmad_accuracy(df, baseline, ablated_params=['k','Target Ratio','b','alpha']):
+    total_accuracy = 0.0
+    count = 0
+    for param in ablated_params:
+        # Filter using all parameters except the one we are ablating.
+        filters = {p: v for p, v in baseline.items() if p != param}
+        sub = df.copy()
+        for p, v in filters.items():
+            sub = sub[sub[p] == v]
+        if len(sub) > 0:
+            # Compute the mean DW-PMAD Accuracy from the CSV for this subset.
+            total_accuracy += sub["DW-PMAD Accuracy"].mean()
+            count += 1
+    return total_accuracy, count
+
 best_baseline = None
-best_score    = -1.0
+best_score = -1.0
 
 for k_ in unique_k:
     for tr_ in unique_tr:
@@ -47,17 +62,24 @@ for k_ in unique_k:
                     'b': b_,
                     'alpha': alpha_
                 }
-                dw_count, tot = ablation_dw_pmad_score(df, candidate,
-                                                       ablated_params=['k','Target Ratio','b','alpha'])
-                if tot == 0:
+                total_accuracy, cnt = ablation_dw_pmad_accuracy(df, candidate,
+                                                                ablated_params=['k','Target Ratio','b','alpha'])
+                if cnt == 0:
                     continue
-                ratio = dw_count / tot
-                if ratio > best_score:
-                    best_score = ratio
+                candidate_accuracy = total_accuracy / cnt
+                # Only consider candidates with DW-PMAD Accuracy >= 0.5.
+                if candidate_accuracy < 0.5:
+                    continue
+                if candidate_accuracy > best_score:
+                    best_score = candidate_accuracy
                     best_baseline = candidate.copy()
 
-print("Chosen baseline:", best_baseline,
-      "(dw_pmad best ratio = {:.2%})".format(best_score))
+if best_baseline is None:
+    print("No baseline candidate found with DW-PMAD Accuracy >= 0.5. Please review your data or criteria.")
+else:
+    print("Chosen baseline:", best_baseline,
+          "(average DW-PMAD Accuracy = {:.2%})".format(best_score))
+
 
 #--------------------------------------------------
 # 4. Set up the ablation plots
