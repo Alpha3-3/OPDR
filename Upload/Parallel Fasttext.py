@@ -280,10 +280,10 @@ def process_parameters(params, test_results_list, use_dw_pmad):
 # ---------------------------------------------------------
 
 # Parameter settings
-b_values = [10,20,30,40,50,60,70,80,90, 100]
+b_values = [50]
 k_values = [1, 3, 6, 10, 15]
 alpha_values = [1, 6, 12, 18, 25, 35, 50, 10000]
-dimensions = [200]  # Example dimension
+dimensions = [298]  # Example dimension
 target_dims = [0.05, 0.1, 0.2, 0.4, 0.6]
 
 # Load data
@@ -327,9 +327,9 @@ if __name__ == '__main__':
 
     # Save test results
     test_results_df = pd.DataFrame(test_results_list, columns=columns)
-    test_results_df.to_csv('parameter_sweep_results_Fasttext_Multiple_methods.csv', index=False)
+    test_results_df.to_csv('parameter_sweep_results_Fasttext_Multiple_methods50.csv', index=False)
     print(test_results_df)
-    print("Test results exported to 'parameter_sweep_results_Fasttext_Multiple_methods.csv'")
+    print("Test results exported to 'parameter_sweep_results_Fasttext_Multiple_methods50.csv'")
 
     total_time = time.perf_counter() - total_start
     print(f"Total time is {total_time:.4f}s")

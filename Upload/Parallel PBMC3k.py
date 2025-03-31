@@ -280,7 +280,7 @@ def process_parameters(params, test_results_list, use_dw_pmad):
 # ---------------------------------------------------------
 
 # Parameter settings
-b_values = [60,70]
+b_values = [40]
 k_values = [1, 3, 6, 10, 15]
 alpha_values = [1, 6, 12, 18, 25, 35, 50, 10000]
 dimensions = [200]  # Example dimension
@@ -327,9 +327,9 @@ if __name__ == '__main__':
 
     # Save test results
     test_results_df = pd.DataFrame(test_results_list, columns=columns)
-    test_results_df.to_csv('parameter_sweep_results_PBMC3k_Multiple_methods6070.csv', index=False)
+    test_results_df.to_csv('parameter_sweep_results_PBMC3k_Multiple_methods40.csv', index=False)
     print(test_results_df)
-    print("Test results exported to 'parameter_sweep_results_PBMC3k_Multiple_methods6070.csv'")
+    print("Test results exported to 'parameter_sweep_results_PBMC3k_Multiple_methods40.csv'")
 
     total_time = time.perf_counter() - total_start
     print(f"Total time is {total_time:.4f}s")

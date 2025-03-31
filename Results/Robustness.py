@@ -1,113 +1,120 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+from matplotlib.lines import Line2D
+
+plt.rcParams.update({'font.size': 14})
 
 # ---------------------------------------------------
-# 1. Load the CSV table
+# 1. Define CSV paths and dataset names.
 # ---------------------------------------------------
-csv_path = "parameter_sweep_results_Isolet_Multiple_methods.csv"
-df = pd.read_csv(csv_path)
+csv_paths = [
+    "parameter_sweep_results_Fasttext_Multiple_methods.csv",
+    "parameter_sweep_results_Isolet_Multiple_methods.csv",
+    "parameter_sweep_results_MNIST_Multiple_methods.csv",
+    "parameter_sweep_results_PBMC3k_Multiple_methods.csv"
+]
+dataset_names = [
+    "Fasttext",
+    "Isolet",
+    "MNIST",
+    "PBMC3k"
+]
 
 # ---------------------------------------------------
-# 2. How is the average accuracy calculated?
+# 2. Define the accuracy columns and method styles (ignoring PCA).
 # ---------------------------------------------------
-# For any given group (for example, when we fix a baseline combination)
-# the "average accuracy" for a method is simply the arithmetic mean of that
-# method's accuracy values across all the rows in that group.
-#
-# For example, if we group by a parameter (say k) and then compute:
-#   group_mean = group['DW-PMAD Accuracy'].mean()
-# that mean is computed as:
-#
-#      (value1 + value2 + ... + valueN) / N
-#
-# where N is the number of rows in that group.
-
-# ---------------------------------------------------
-# 3. Count "Best" and "Second Best" Occurrences Over the Entire Parameter Space
-# ---------------------------------------------------
-# We assume the following columns hold the accuracy values for each method.
 accuracy_cols = [
-    'DW-PMAD Accuracy',
-    'PCA Accuracy',
+    'MPAD Accuracy',
     'UMAP Accuracy',
     'Isomap Accuracy',
     'KernelPCA Accuracy',
     'MDS Accuracy'
 ]
 
-# We will now loop over every row to determine which method is best and second best.
-# (We use the built-in pandas ranking method on each row's accuracy values,
-#  ranking in descending order so that rank 1 means highest accuracy.)
-
-methods = accuracy_cols
-best_counts = {m: 0 for m in methods}
-second_counts = {m: 0 for m in methods}
-
-for idx, row in df.iterrows():
-    accuracies = row[accuracy_cols]
-    # Rank in descending order: highest value gets rank 1.
-    ranks = accuracies.rank(method='min', ascending=False)
-    # The best method is the one with the minimum rank.
-    best_method = ranks.idxmin()
-    # Now, determine the second best: choose the method with rank==2.
-    # (If there is a tie, this simply selects one arbitrarily.)
-    second_method = None
-    for m in methods:
-        if ranks[m] == 2:
-            second_method = m
-            break
-    best_counts[best_method] += 1
-    if second_method is not None:
-        second_counts[second_method] += 1
-
-# Create a DataFrame of the counts for easier plotting.
-counts_df = pd.DataFrame({
-    'Method': methods,
-    'Best Count': [best_counts[m] for m in methods],
-    'Second Best Count': [second_counts[m] for m in methods]
-})
-
-# ---------------------------------------------------
-# 4. Plot the "Robustness" Graph
-#    This graph will show, for each method, the number of times it achieved the best and second best accuracy.
-# ---------------------------------------------------
-
-# We define custom styles to emphasize DW-PMAD:
 method_styles = {
-    'DW-PMAD Accuracy':    {'color': 'red'},       # Emphasize in red
-    'PCA Accuracy':        {'color': 'blue'},
-    'UMAP Accuracy':       {'color': 'green'},
-    'Isomap Accuracy':     {'color': 'orange'},
-    'KernelPCA Accuracy':  {'color': 'purple'},
-    'MDS Accuracy':        {'color': 'gray'}
+    'MPAD Accuracy':    {'color': 'red'},      # Emphasize in red
+    'UMAP Accuracy':    {'color': 'green'},
+    'Isomap Accuracy':  {'color': 'orange'},
+    'KernelPCA Accuracy': {'color': 'purple'},
+    'MDS Accuracy':     {'color': 'gray'}
 }
 
-# Create a grouped bar chart.
-fig, ax = plt.subplots(figsize=(10, 6))
+# ---------------------------------------------------
+# 3. Create a 2x2 subplot layout for the 4 datasets.
+# ---------------------------------------------------
+plt.style.use('tableau-colorblind10')
+fig, axs = plt.subplots(2, 2, figsize=(12, 8))
+axs = axs.flatten()  # Flatten to 1D array for easy iteration
 
-x = np.arange(len(methods))
-width = 0.35
+# ---------------------------------------------------
+# 4. Process each dataset and plot the grouped bar chart.
+# ---------------------------------------------------
+for i, csv_path in enumerate(csv_paths):
+    # Load and filter the data (ignore rows with b = 40 or 50).
+    df = pd.read_csv(csv_path)
+    df = df[~df['b'].isin([40, 50])]
 
-# Bar for "Best" counts
-bars1 = ax.bar(x - width/2, counts_df['Best Count'], width,
-               label='Best', color=[method_styles[m]['color'] for m in methods])
+    # Initialize counters for best and second best occurrences.
+    best_counts = {m: 0 for m in accuracy_cols}
+    second_counts = {m: 0 for m in accuracy_cols}
+    methods = accuracy_cols  # fixed ordering
 
-# Bar for "Second Best" counts
-bars2 = ax.bar(x + width/2, counts_df['Second Best Count'], width,
-               label='Second Best', color='lightgray')
+    # Loop over each row, rank the methods, and count the best and second best.
+    for idx, row in df.iterrows():
+        accuracies = row[accuracy_cols]
+        ranks = accuracies.rank(method='min', ascending=False)
+        best_method = ranks.idxmin()
+        second_method = None
+        for m in methods:
+            if ranks[m] == 2:
+                second_method = m
+                break
+        best_counts[best_method] += 1
+        if second_method is not None:
+            second_counts[second_method] += 1
 
-# Optionally, we can add a black border to the DW-PMAD best bar to further emphasize.
-dw_idx = methods.index('DW-PMAD Accuracy')
-bars1[dw_idx].set_edgecolor('black')
-bars1[dw_idx].set_linewidth(2.5)
+    # Create a DataFrame for plotting.
+    counts_df = pd.DataFrame({
+        'Method': methods,
+        'Best Count': [best_counts[m] for m in methods],
+        'Second Best Count': [second_counts[m] for m in methods]
+    })
 
-# Labeling the plot.
-ax.set_xticks(x)
-ax.set_xticklabels(methods, rotation=45, ha='right', fontsize=10)
-ax.set_ylabel("Count", fontsize=12)
-ax.set_title("Robustness of Methods: Frequency as Best and Second Best", fontsize=14)
-ax.legend(loc='best')
+    # Plot a grouped bar chart.
+    ax = axs[i]
+    x = np.arange(len(methods))
+    width = 0.35
 
-plt.tight_layout()
+    # Bar for "Best" counts.
+    bars1 = ax.bar(x - width/2, counts_df['Best Count'], width,
+                   color=[method_styles[m]['color'] for m in methods])
+    # Bar for "Second Best" counts.
+    bars2 = ax.bar(x + width/2, counts_df['Second Best Count'], width,
+                   color='lightgray')
+
+    # Emphasize MPAD Accuracy by adding a thick black border.
+    mpad_idx = methods.index('MPAD Accuracy')
+    bars1[mpad_idx].set_edgecolor('black')
+    bars1[mpad_idx].set_linewidth(2.5)
+
+    # Set the x-axis tick labels (remove " Accuracy" suffix).
+    method_labels = ['MPAD', 'UMAP', 'Isomap', 'KernelPCA', 'MDS']
+    ax.set_xticks(x)
+    ax.set_xticklabels(method_labels, rotation=0, ha='center', fontsize=10)
+    ax.set_ylabel("Count", fontsize=12)
+    ax.set_title(dataset_names[i], fontsize=14)
+
+# ---------------------------------------------------
+# 5. Create one global legend.
+# ---------------------------------------------------
+# Create custom legend entries.
+legend_handles = [
+    Line2D([0], [0], marker='s', color='w', markerfacecolor='none',
+           markeredgecolor='black', markersize=10, label='Best Count (bar color indicates method; MPAD is emphasized)'),
+    Line2D([0], [0], marker='s', color='lightgray', markersize=10, label='Second Best Count')
+]
+
+plt.tight_layout(rect=[0, 0, 1, 0.93])
+fig.legend(handles=legend_handles, loc='upper center', ncol=1, fontsize=10, bbox_to_anchor=(0.5, 0.98))
 plt.show()

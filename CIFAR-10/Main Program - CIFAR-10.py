@@ -132,6 +132,6 @@ if __name__ == '__main__':
     results_df = pd.DataFrame(list(results_list),
                               columns=['Dimension', 'Target Ratio', 'b', 'alpha', 'k',
                                        'DW-PMAD Accuracy', 'PCA Accuracy', 'Better Method'])
-    results_df.to_csv('parameter_sweep_results_CIFAR-10_Multiple_methods.csv', index=False)
+    results_df.to_csv('parameter_sweep_results_CIFAR-10_Multiple_methodsPast.csv', index=False)
     print(results_df)
-    print("Results exported to 'parameter_sweep_results_CIFAR-10_Multiple_methods.csv'")
+    print("Results exported to 'parameter_sweep_results_CIFAR-10_Multiple_methodsPast.csv'")

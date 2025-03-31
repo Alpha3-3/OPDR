@@ -354,9 +354,9 @@ if __name__ == '__main__':
 
     # Save test results
     test_results_df = pd.DataFrame(test_results_list, columns=columns)
-    test_results_df.to_csv('parameter_sweep_results_CIFAR-10_Multiple_methods.csv', index=False)
+    test_results_df.to_csv('parameter_sweep_results_CIFAR-10_Multiple_methodsPast.csv', index=False)
     print(test_results_df)
-    print("Test results exported to 'parameter_sweep_results_CIFAR-10_Multiple_methods.csv'")
+    print("Test results exported to 'parameter_sweep_results_CIFAR-10_Multiple_methodsPast.csv'")
 
     total_time = time.perf_counter() - total_start
     print(f"Total time is {total_time:.4f}s")

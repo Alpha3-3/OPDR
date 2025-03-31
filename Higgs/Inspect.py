@@ -5,8 +5,8 @@ import pandas as pd
 def load_vectors(file_path):
     return np.load(file_path)
 
-training_vectors = load_vectors('training_vectors_300_HIggs.npy')
-testing_vectors = load_vectors('testing_vectors_1000_Higgs.npy')
+training_vectors = load_vectors('training_vectors_600_HIggs.npy')
+testing_vectors = load_vectors('testing_vectors_600_Higgs.npy')
 
 # Print statistics of the vectors
 print("Training Vectors Description:")
