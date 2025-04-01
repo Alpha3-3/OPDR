@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-plt.rcParams.update({'font.size': 14})
+plt.rcParams.update({'font.size': 18})
 
 # -------------------------------
 # 1. Define CSV paths and dataset names.
@@ -10,13 +10,13 @@ plt.rcParams.update({'font.size': 14})
 csv_paths = [
     "parameter_sweep_results_Fasttext_Multiple_methods.csv",
     "parameter_sweep_results_Isolet_Multiple_methods.csv",
-    "parameter_sweep_results_MNIST_Multiple_methods.csv",
+    "parameter_sweep_results_Arcene_Multiple_methods.csv",
     "parameter_sweep_results_PBMC3k_Multiple_methods.csv"
 ]
 dataset_names = [
     "Fasttext",
     "Isolet",
-    "MNIST",
+    "Arcene",
     "PBMC3k"
 ]
 
@@ -88,20 +88,14 @@ for i, csv_path in enumerate(csv_paths):
     bars[mpad_idx].set_edgecolor('black')
     bars[mpad_idx].set_linewidth(2.5)
 
-    # Increase the y-axis limit to ensure annotations are visible.
+    # Add a horizontal dotted line at the MPAD average accuracy.
+    ax.axhline(y=mean_acc['MPAD Accuracy'], color='black', linestyle=':', linewidth=1.5)
+
+    # Increase the y-axis limit to ensure the horizontal line is visible.
     ax.set_ylim(0, mean_acc.max() * 1.15)
 
-    # Annotate each bar with its numeric value.
-    for j, bar in enumerate(bars):
-        height = bar.get_height()
-        ax.annotate(f'{height:.3f}',
-                    xy=(bar.get_x() + bar.get_width()/2, height),
-                    xytext=(0, 3),  # vertical offset in points
-                    textcoords="offset points",
-                    ha='center', va='bottom', fontsize=9)
-
     # Set the x-axis tick labels (use method names without "Accuracy") horizontally.
-    method_labels = ['MPAD', 'UMAP', 'Isomap', 'KernelPCA', 'MDS']
+    method_labels = ['MPAD', 'UMAP', 'Isomap', 'KPCA', 'MDS']
     ax.set_xticks(x)
     ax.set_xticklabels(method_labels, rotation=0, ha='center')
     ax.set_ylabel("Average Accuracy")
@@ -110,7 +104,14 @@ for i, csv_path in enumerate(csv_paths):
     # Add a text annotation below the plot showing the selected best parameters.
     baseline_text = f"Selected: alpha = {best_combo['alpha']}, b = {best_combo['b']}"
     ax.text(0.5, -0.18, baseline_text, transform=ax.transAxes,
-            ha='center', va='center', fontsize=10)
+            ha='center', va='center', fontsize=18)
 
-plt.tight_layout()
+# Adjust subplot parameters as specified.
+plt.subplots_adjust(top=0.958,
+                    bottom=0.079,
+                    left=0.071,
+                    right=0.995,
+                    hspace=0.38,
+                    wspace=0.174)
+
 plt.show()

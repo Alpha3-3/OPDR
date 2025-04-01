@@ -13,10 +13,12 @@ from sklearn.linear_model import LinearRegression
 from sklearn.decomposition import KernelPCA
 from sklearn.manifold import Isomap
 import umap  # Standard import; ensure this is from umap-learn
-
+## FULLY PARALLEL
 # ---------------------------------------------------------
 # GLOBAL POOL & HELPER FUNCTIONS FOR PARALLEL DISTANCE
 # ---------------------------------------------------------
+
+# We'll create a single global pool to avoid nested pools.
 global_pool = None
 
 def init_global_pool(num_workers=None):
@@ -26,6 +28,7 @@ def init_global_pool(num_workers=None):
     """
     global global_pool
     if global_pool is None:
+        # Use all cores or user-specified number
         global_pool = mp.Pool(processes=(num_workers or mp.cpu_count()))
 
 def linear_index_to_pair(indices, N):
@@ -33,44 +36,58 @@ def linear_index_to_pair(indices, N):
     Convert linear indices of the upper triangular matrix (excluding the diagonal)
     into pair indices (i, j) with i < j, using vectorized operations.
     """
+    # For each row i, the number of pairs is (N - i - 1)
     counts = np.cumsum(np.arange(N - 1, 0, -1))
+    # Find for each linear index the corresponding row index i
     i = np.searchsorted(counts, indices, side='right')
+    # Determine the starting count for the found row
     prev_counts = np.zeros_like(i)
     idx_gt_zero = (i > 0)
     prev_counts[idx_gt_zero] = counts[i[idx_gt_zero] - 1]
+    # Compute column index j
     j = indices - prev_counts + i + 1
     return i, j
 
 def compute_diff_range_chunk(chunk_indices, vector):
     """
     Compute abs differences for pairs in chunk_indices.
+    chunk_indices is a list/array of linear indices into the upper-triangular part
+    of the distance matrix, i.e. the same indices you'd feed to linear_index_to_pair.
     """
     i, j = linear_index_to_pair(np.array(chunk_indices), len(vector))
     return np.abs(vector[i] - vector[j])
 
 def parallel_pdist(vector, sample_fraction=1.0):
     """
-    Compute pairwise absolute differences with limited precision (float32).
-    The vector is converted to float32 before any calculations.
+    A version of pairwise distance that divides the index set into chunks
+    and spawns multiple workers to compute absolute differences in parallel.
     """
-    # Limit precision to float32 for pairwise distance calculations
-    vector = vector.astype(np.float32, copy=False)
+    global global_pool
     N = len(vector)
     total_pairs = N * (N - 1) // 2
 
+    # If sample_fraction is 1 or data is small, just do a direct vectorized approach
     if sample_fraction >= 1.0 or total_pairs < 1e4:
         i, j = np.triu_indices(N, k=1)
         return np.abs(vector[i] - vector[j])
     else:
+        # Randomly sample a fraction of the pairwise indices
         sample_size = int(total_pairs * sample_fraction)
         linear_indices = np.random.choice(total_pairs, size=sample_size, replace=False)
-        num_cores = mp.cpu_count()
+
+        # Split linear_indices into chunks for each process
+        num_cores = mp.cpu_count()  # or you could do len(global_pool._pool)
         chunk_size = max(1, sample_size // num_cores)
-        chunks = [linear_indices[i:i + chunk_size] for i in range(0, sample_size, chunk_size)]
+        chunks = [linear_indices[i:i + chunk_size]
+                  for i in range(0, sample_size, chunk_size)]
+
+        # Each worker computes partial diffs
         results = global_pool.starmap(
             compute_diff_range_chunk,
             [(chunk, vector) for chunk in chunks]
         )
+
+        # Concatenate all partial results
         return np.concatenate(results)
 
 # ---------------------------------------------------------
@@ -89,8 +106,9 @@ def dw_pmad_b(w, X, b):
     w = w / np.linalg.norm(w)
 
     # Project data
-    projections = X @ w  # projections will initially be of X's dtype (often float64)
-    # Pairwise distance calculations now use float32 precision inside parallel_pdist
+    projections = X @ w  # Vectorized projection (1D array)
+
+    # Compute pairwise absolute differences in parallel
     abs_diffs = parallel_pdist(projections)
 
     # Partition to get top (b%) differences
@@ -115,6 +133,7 @@ def dw_pmad(X, b, alpha, target_dim):
         optimal_w = result.x / np.linalg.norm(result.x)
         prev_ws.append(optimal_w)
         optimal_ws.append(optimal_w)
+    # Project the data
     total_time = time.perf_counter() - total_start
     print(f"DW-PMAD timing: {total_time:.4f}s")
     return X @ np.column_stack(optimal_ws), np.column_stack(optimal_ws)
@@ -128,8 +147,11 @@ def project_dw_pmad(X, projection_axes):
 
 def calculate_accuracy(original_data, reduced_data, new_original_data, new_reduced_data, k):
     total_start = time.perf_counter()
+
+    # Use all cores for building/querying neighbors
     nbrs_original = NearestNeighbors(n_neighbors=k, n_jobs=-1).fit(original_data)
     nbrs_reduced = NearestNeighbors(n_neighbors=k, n_jobs=-1).fit(reduced_data)
+
     total_matches = 0
     for i in range(len(new_original_data)):
         inds_orig = nbrs_original.kneighbors(new_original_data[i].reshape(1, -1),
@@ -137,6 +159,7 @@ def calculate_accuracy(original_data, reduced_data, new_original_data, new_reduc
         inds_reduced = nbrs_reduced.kneighbors(new_reduced_data[i].reshape(1, -1),
                                                return_distance=False)[0]
         total_matches += len(set(inds_orig) & set(inds_reduced))
+
     total_time = time.perf_counter() - total_start
     print(f"Time for calculating accuracy for k= {k} is {total_time:.4f}s")
     return total_matches / (len(new_original_data) * k)
@@ -147,8 +170,10 @@ def calculate_accuracy(original_data, reduced_data, new_original_data, new_reduc
 
 def process_parameters(params, test_results_list, use_dw_pmad):
     """
-    Runs the pipeline for one parameter set.
+    Runs the pipeline for one parameter set, but *internal* tasks
+    (like DW-PMAD pairwise distances, k-NN accuracy) use multiple cores.
     """
+    # Unpack parameters
     if use_dw_pmad:
         dim, target_ratio, b, alpha = params
     else:
@@ -192,6 +217,7 @@ def process_parameters(params, test_results_list, use_dw_pmad):
 
     # --- PCA ---
     pca_start = time.perf_counter()
+    # (Note: PCA(n_jobs=-1) may not be supported in all sklearn versions)
     pca = PCA(n_components=target_dim).fit(X_train_standardized)
     X_pca = pca.transform(X_train_standardized)
     new_pca = pca.transform(X_test_standardized)
@@ -264,6 +290,7 @@ def process_parameters(params, test_results_list, use_dw_pmad):
               f"DW-PMAD Acc={acc_dw_pmad_test}, PCA Acc={acc_pca_test}, UMAP Acc={acc_umap_test}, "
               f"Isomap Acc={acc_isomap_test}, KernelPCA Acc={acc_kernel_pca_test}, MDS Acc={acc_mds_test}, "
               f"Best: {better_method_test}")
+        # Record results
         test_results_list.append([
             dim, target_ratio, b, alpha, k,
             acc_dw_pmad_test, acc_pca_test, acc_umap_test,
@@ -280,19 +307,19 @@ def process_parameters(params, test_results_list, use_dw_pmad):
 # ---------------------------------------------------------
 
 # Parameter settings
-b_values = [10,20,30,40,50,60,70,80,90, 100]
+# b_values = [60,70,80,90, 100]      # Used if DW-PMAD is enabled
+b_values = [10,20,30,40,50,60,70,80,90]
 k_values = [1, 3, 6, 10, 15]
-alpha_values = [1, 6, 12, 18, 25, 35, 50, 10000]
+alpha_values = [1, 6, 12, 18, 25, 35, 50, 10000]  # Used if DW-PMAD is enabled
 dimensions = [200]  # Example dimension
 target_dims = [0.05, 0.1, 0.2, 0.4, 0.6]
 
 # Load data
-training_vectors = load_vectors('training_vectors_600_Isolet.npy')
-testing_vectors = load_vectors('testing_vectors_600_Isolet.npy')
+training_vectors = load_vectors('../Batch Process/training_vectors_600_Isolet.npy')
+testing_vectors = load_vectors('../Batch Process/testing_vectors_600_Isolet.npy')
 
 if __name__ == '__main__':
     total_start = time.perf_counter()
-    print(b_values, k_values, alpha_values, dimensions, target_dims)
 
     # Decide whether to use DW-PMAD
     use_dw_input = "y".strip().lower()
@@ -308,10 +335,11 @@ if __name__ == '__main__':
     init_global_pool()
 
     test_results_list = []
+    # Instead of parallelizing at this level, we run sequentially:
     for params in param_combinations:
         process_parameters(params, test_results_list, use_dw_pmad)
 
-    # Close out the pool
+    # Close out the pool if you like, or keep it until program exit
     global_pool.close()
     global_pool.join()
 
@@ -327,7 +355,7 @@ if __name__ == '__main__':
 
     # Save test results
     test_results_df = pd.DataFrame(test_results_list, columns=columns)
-    test_results_df.to_csv('parameter_sweep_results_Isolet_Multiple_methods.csv', index=False)
+    test_results_df.to_csv('parameter_sweep_results_Isolet_Multiple_methods100.csv', index=False)
     print(test_results_df)
     print("Test results exported to 'parameter_sweep_results_Isolet_Multiple_methods.csv'")
 

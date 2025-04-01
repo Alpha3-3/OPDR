@@ -10,13 +10,13 @@ plt.rcParams.update({'font.size': 14})
 csv_paths = [
     "parameter_sweep_results_Fasttext_Multiple_methods.csv",
     "parameter_sweep_results_Isolet_Multiple_methods.csv",
-    "parameter_sweep_results_MNIST_Multiple_methods.csv",
+    "parameter_sweep_results_Arcene_Multiple_methods.csv",
     "parameter_sweep_results_PBMC3k_Multiple_methods.csv"
 ]
 dataset_names = [
     "Fasttext",
     "Isolet",
-    "MNIST",
+    "Arcene",
     "PBMC3k"
 ]
 
@@ -95,18 +95,18 @@ method_styles = {
 
 #--------------------------------------------------
 # 4. Set up the overall figure:
-#    2 rows and 8 columns (each dataset occupies 4 contiguous subplots).
+#    4 rows and 4 columns (each dataset occupies 4 contiguous subplots).
 #    Adjust figure size and spacing to reduce empty spaces.
 #--------------------------------------------------
 plt.style.use('tableau-colorblind10')
 n_datasets = len(csv_paths)
-datasets_per_row = 2  # two datasets per row
+datasets_per_row = 1  # one dataset per row
 params_to_ablate = ['k', 'Target Ratio', 'b', 'alpha']
-n_rows = 2
-n_cols = datasets_per_row * len(params_to_ablate)  # 2 * 4 = 8 columns
+n_rows = 4
+n_cols = datasets_per_row * len(params_to_ablate)  # 4 columns
 
-fig_width = 22
-fig_height = 8
+fig_width = 24
+fig_height = 16
 fig, axes = plt.subplots(n_rows, n_cols, figsize=(fig_width, fig_height))
 
 # For a global legend.
@@ -138,7 +138,7 @@ for idx, csv_path in enumerate(csv_paths):
         grouped = subset.groupby(param)
         summary = grouped[accuracy_cols].mean().reset_index()
 
-        # Plot each accuracy column.
+        # Plot each accuracy column using actual data values for x.
         for acc_col in accuracy_cols:
             style = method_styles.get(acc_col, {})
             line, = ax.plot(
@@ -152,11 +152,21 @@ for idx, csv_path in enumerate(csv_paths):
             if acc_col not in all_handles:
                 all_handles[acc_col] = line
 
-        # Use log scale for alpha.
+        # For a logarithmic scale if needed.
         if param == 'alpha':
             ax.set_xscale('log')
+            # Rotate x-tick labels to reduce overlap.
+            plt.setp(ax.get_xticklabels(), rotation=45, ha='right', fontsize=12)
+        else:
+            # For other parameters, use a moderate rotation if needed.
+            plt.setp(ax.get_xticklabels(), rotation=0, fontsize=12)
+
         ax.set_xlabel(param, fontsize=16)
         ax.set_ylabel("Accuracy", fontsize=16)
+
+        # Set the x-ticks to the actual data point values.
+        ax.set_xticks(summary[param])
+        ax.set_xticklabels(summary[param], fontsize=12)
 
         # Only on the left-most subplot for this dataset, add the dataset name and baseline info.
         if i == 0:
@@ -169,11 +179,11 @@ for idx, csv_path in enumerate(csv_paths):
 #--------------------------------------------------
 # 6. Create one global legend and adjust layout to reduce empty spaces
 #--------------------------------------------------
-fig.legend(all_handles.values(), all_handles.keys(), loc='upper right', ncol=len(accuracy_cols), fontsize=16)
-plt.subplots_adjust(top=0.895,
+fig.legend(all_handles.values(), all_handles.keys(), loc='upper center', ncol=len(accuracy_cols), fontsize=16)
+plt.subplots_adjust(top=0.94,
                     bottom=0.075,
-                    left=0.035,
+                    left=0.03,
                     right=0.995,
-                    hspace=0.33,
-                    wspace=0.39)
+                    hspace=0.315,
+                    wspace=0.16)
 plt.show()

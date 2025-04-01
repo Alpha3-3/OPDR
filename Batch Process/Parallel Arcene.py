@@ -287,8 +287,8 @@ dimensions = [200]  # Example dimension
 target_dims = [0.05, 0.1, 0.2, 0.4, 0.6]
 
 # Load data
-training_vectors = load_vectors('training_vectors_600_Isolet.npy')
-testing_vectors = load_vectors('testing_vectors_600_Isolet.npy')
+training_vectors = load_vectors('training_vectors_600_Arcene.npy')
+testing_vectors = load_vectors('testing_vectors_297_Arcene.npy')
 
 if __name__ == '__main__':
     total_start = time.perf_counter()
@@ -327,9 +327,9 @@ if __name__ == '__main__':
 
     # Save test results
     test_results_df = pd.DataFrame(test_results_list, columns=columns)
-    test_results_df.to_csv('parameter_sweep_results_Isolet_Multiple_methods.csv', index=False)
+    test_results_df.to_csv('parameter_sweep_results_Arcene_Multiple_methods40.csv', index=False)
     print(test_results_df)
-    print("Test results exported to 'parameter_sweep_results_Isolet_Multiple_methods.csv'")
+    print("Test results exported to 'parameter_sweep_results_Arcene_Multiple_methods40.csv'")
 
     total_time = time.perf_counter() - total_start
     print(f"Total time is {total_time:.4f}s")

@@ -17,7 +17,7 @@ SUBPLOT_WIDTH_RATIOS = [1, 1, 1, 1]  # Relative widths for the 4 subplots in eac
 csv_paths = [
     "parameter_sweep_results_Fasttext_Multiple_methods.csv",
     "parameter_sweep_results_Isolet_Multiple_methods.csv",
-    "parameter_sweep_results_MNIST_Multiple_methods.csv",
+    "parameter_sweep_results_Arcene_Multiple_methods.csv",
     "parameter_sweep_results_PBMC3k_Multiple_methods.csv"
 ]
 dataset_names = ["Fasttext", "Isolet", "MNIST", "PBMC3k"]
