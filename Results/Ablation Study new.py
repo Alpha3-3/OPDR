@@ -8,10 +8,10 @@ plt.rcParams.update({'font.size': 14})
 # 1. List of CSV files and manual dataset names
 #--------------------------------------------------
 csv_paths = [
-    "parameter_sweep_results_Fasttext_Multiple_methods.csv",
-    "parameter_sweep_results_Isolet_Multiple_methods.csv",
-    "parameter_sweep_results_Arcene_Multiple_methods.csv",
-    "parameter_sweep_results_PBMC3k_Multiple_methods.csv"
+    "parameter_sweep_results_Fasttext_Multiple_methods_with_additional_baselines.csv",
+    "parameter_sweep_results_Isolet_Multiple_methods_with_additional_baselines.csv",
+    "parameter_sweep_results_Arcene_Multiple_methods_with_additional_baselines.csv",
+    "parameter_sweep_results_PBMC3k_Multiple_methods_with_additional_baselines.csv"
 ]
 dataset_names = [
     "Fasttext",
@@ -75,28 +75,22 @@ def get_subset_for_parameter(df, param, baseline):
     return sub
 
 #--------------------------------------------------
-# 3. Define accuracy metrics and styles (ignoring PCA Accuracy)
+# 3. Define styling for each method (including the new baseline methods)
 #--------------------------------------------------
-accuracy_cols = [
-    'MPAD Accuracy',
-    'UMAP Accuracy',
-    'Isomap Accuracy',
-    'KernelPCA Accuracy',
-    'MDS Accuracy'
-]
-
+# Existing method styles; add new baseline style if desired.
 method_styles = {
-    'MPAD Accuracy':    {'color': 'red',    'marker': 'o', 'linestyle': '-'},
-    'UMAP Accuracy':    {'color': 'green',  'marker': '^', 'linestyle': '-.'},
-    'Isomap Accuracy':  {'color': 'orange', 'marker': 'D', 'linestyle': ':'},
-    'KernelPCA Accuracy': {'color': 'purple', 'marker': 'v', 'linestyle': '-'},
-    'MDS Accuracy':     {'color': 'gray',   'marker': 'X', 'linestyle': '--'}
+    'MPAD Accuracy':          {'color': 'red',    'marker': 'o', 'linestyle': '-'},
+    'UMAP Accuracy':          {'color': 'green',  'marker': '^', 'linestyle': '-.'},
+    'Isomap Accuracy':        {'color': 'orange', 'marker': 'D', 'linestyle': ':'},
+    'KernelPCA Accuracy':     {'color': 'purple', 'marker': 'v', 'linestyle': '-'},
+    'MDS Accuracy':           {'color': 'gray',   'marker': 'X', 'linestyle': '--'},
+    'RandomProjection Accuracy': {'color': 'blue', 'marker': 's', 'linestyle': ':'}
 }
+default_style = {'color': None, 'marker': 'o', 'linestyle': '-'}
 
 #--------------------------------------------------
 # 4. Set up the overall figure:
 #    4 rows and 4 columns (each dataset occupies 4 contiguous subplots).
-#    Adjust figure size and spacing to reduce empty spaces.
 #--------------------------------------------------
 plt.style.use('tableau-colorblind10')
 n_datasets = len(csv_paths)
@@ -124,6 +118,9 @@ for idx, csv_path in enumerate(csv_paths):
     df = pd.read_csv(csv_path)
     df = df[~df['b'].isin([40, 50])]
 
+    # Dynamically determine accuracy columns: select all columns ending with "Accuracy", excluding "PCA Accuracy".
+    accuracy_cols = [col for col in df.columns if col.endswith("Accuracy") and col != "PCA Accuracy"]
+
     # Determine the best baseline for this dataset.
     best_baseline, best_score = find_best_baseline(df)
     if best_baseline is None:
@@ -138,9 +135,9 @@ for idx, csv_path in enumerate(csv_paths):
         grouped = subset.groupby(param)
         summary = grouped[accuracy_cols].mean().reset_index()
 
-        # Plot each accuracy column using actual data values for x.
+        # Plot each accuracy column using the data values for x.
         for acc_col in accuracy_cols:
-            style = method_styles.get(acc_col, {})
+            style = method_styles.get(acc_col, default_style)
             line, = ax.plot(
                 summary[param],
                 summary[acc_col],
@@ -152,23 +149,19 @@ for idx, csv_path in enumerate(csv_paths):
             if acc_col not in all_handles:
                 all_handles[acc_col] = line
 
-        # For a logarithmic scale if needed.
+        # Use logarithmic scale for alpha if needed.
         if param == 'alpha':
             ax.set_xscale('log')
-            # Rotate x-tick labels to reduce overlap.
             plt.setp(ax.get_xticklabels(), rotation=45, ha='right', fontsize=12)
         else:
-            # For other parameters, use a moderate rotation if needed.
             plt.setp(ax.get_xticklabels(), rotation=0, fontsize=12)
 
         ax.set_xlabel(param, fontsize=16)
         ax.set_ylabel("Accuracy", fontsize=16)
-
-        # Set the x-ticks to the actual data point values.
         ax.set_xticks(summary[param])
         ax.set_xticklabels(summary[param], fontsize=12)
 
-        # Only on the left-most subplot for this dataset, add the dataset name and baseline info.
+        # Add dataset name and baseline info only on the first subplot for this dataset.
         if i == 0:
             title_text = (f"{dataset_names[idx]}  Baseline:  "
                           f"k = {best_baseline['k']}, TR = {best_baseline['Target Ratio']}, "
@@ -179,7 +172,7 @@ for idx, csv_path in enumerate(csv_paths):
 #--------------------------------------------------
 # 6. Create one global legend and adjust layout to reduce empty spaces
 #--------------------------------------------------
-fig.legend(all_handles.values(), all_handles.keys(), loc='upper center', ncol=len(accuracy_cols), fontsize=16)
+fig.legend(all_handles.values(), all_handles.keys(), loc='upper center', ncol=len(all_handles), fontsize=16)
 plt.subplots_adjust(top=0.94,
                     bottom=0.075,
                     left=0.03,

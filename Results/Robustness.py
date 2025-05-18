@@ -9,10 +9,10 @@ plt.rcParams.update({'font.size': 18})
 # 1. Define CSV paths and dataset names.
 # ---------------------------------------------------
 csv_paths = [
-    "parameter_sweep_results_Fasttext_Multiple_methods.csv",
-    "parameter_sweep_results_Isolet_Multiple_methods.csv",
-    "parameter_sweep_results_Arcene_Multiple_methods.csv",
-    "parameter_sweep_results_PBMC3k_Multiple_methods.csv"
+    "parameter_sweep_results_Fasttext_Multiple_methods_with_additional_baselines.csv",
+    "parameter_sweep_results_Isolet_Multiple_methods_with_additional_baselines.csv",
+    "parameter_sweep_results_Arcene_Multiple_methods_with_additional_baselines.csv",
+    "parameter_sweep_results_PBMC3k_Multiple_methods_with_additional_baselines.csv"
 ]
 dataset_names = [
     "Fasttext",
