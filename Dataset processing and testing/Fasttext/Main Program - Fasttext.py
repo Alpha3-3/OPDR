@@ -112,7 +112,7 @@ def process_parameters(params, results_list):
 b_values = [50,70,85, 100]
 k_values = [3,6, 10,15]
 alpha_values = [1,5,10,25]
-dimensions = [50] # 299
+dimensions = [300] # 300
 target_dims = [0.2,0.4, 0.6, 0.8]
 
 # Load data

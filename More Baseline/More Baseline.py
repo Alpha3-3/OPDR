@@ -162,17 +162,14 @@ methods_mapping = {
 # Define your dataset file paths.
 # (Adjust the file names as needed for your environment.)
 datasets = {
-    'Arcene': ('../Batch Process/training_vectors_600_Arcene.npy', '../Batch Process/testing_vectors_297_Arcene.npy'),
-    'Fasttext': ('../Batch Process/training_vectors_600_Fasttext.npy', '../Batch Process/testing_vectors_600_Fasttext.npy'),
-    'Isolet': ('../Batch Process/training_vectors_600_Isolet.npy', '../Batch Process/testing_vectors_600_Isolet.npy'),
-    'PBMC3k': ('../Batch Process/training_vectors_600_PBMC3k.npy', '../Batch Process/testing_vectors_600_PBMC3k.npy')
+    'Arcene': ('training_vectors_600_Arcene.npy', 'testing_vectors_300_Arcene.npy')
 }
 
 # Base parameter for feature selection for most datasets is 200,
 # but for Fasttext use 298.
 default_dim = 200
 
-target_ratios = [0.05, 0.1, 0.2, 0.4, 0.6]
+target_ratios = [0.05, 0.6]
 # Target dimensions will be computed based on the dim used for that dataset.
 k_values = [1, 3, 6, 10, 15]
 
@@ -181,9 +178,9 @@ for dname, (train_path, test_path) in datasets.items():
     print(f"\nProcessing dataset: {dname}")
     # Adjust sampling dim for Fasttext
     if dname == 'Fasttext':
-        cur_dim = 298
+        cur_dim = 300
     else:
-        cur_dim = default_dim
+    cur_dim = default_dim
 
     # Load the dataset (assumes .npy files)
     if not (os.path.exists(train_path) and os.path.exists(test_path)):

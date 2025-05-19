@@ -5,8 +5,8 @@ import pandas as pd
 def load_vectors(file_path):
     return np.load(file_path)
 
-training_vectors = load_vectors('training_vectors_600_Fasttext.npy')
-testing_vectors = load_vectors('testing_vectors_600_Fasttext.npy')
+training_vectors = load_vectors('training_vectors_1200_Fasttext.npy')
+testing_vectors = load_vectors('testing_vectors_300_Fasttext.npy')
 
 # For inspection, only use the first 3000 dimensions
 training_inspect = training_vectors[:, :3000]

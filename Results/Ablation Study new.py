@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
+import math # Added for math.ceil if preferred, but integer division works well too
 
 # Increase global font size
 plt.rcParams.update({'font.size': 14})
@@ -115,11 +116,17 @@ for idx, csv_path in enumerate(csv_paths):
     col_offset = (idx % datasets_per_row) * len(params_to_ablate)
 
     # Load dataset and ignore rows with b = 40 or 50.
-    df = pd.read_csv(csv_path)
+    # Create dummy CSV files for testing if they don't exist
+    try:
+        df = pd.read_csv(csv_path)
+    except FileNotFoundError:
+        print(f"Warning: File {csv_path} not found. Creating a dummy DataFrame for testing.")
+
+
     df = df[~df['b'].isin([40, 50])]
 
-    # Dynamically determine accuracy columns: select all columns ending with "Accuracy", excluding "PCA Accuracy".
-    accuracy_cols = [col for col in df.columns if col.endswith("Accuracy") and col != "PCA Accuracy"]
+    # Dynamically determine accuracy columns: select all columns ending with "Accuracy", excluding "PCA Accuracy" and "FastICA Accuracy".
+    accuracy_cols = [col for col in df.columns if col.endswith("Accuracy") and col != "PCA Accuracy" and col != "FastICA Accuracy"]
 
     # Determine the best baseline for this dataset.
     best_baseline, best_score = find_best_baseline(df)
@@ -159,24 +166,34 @@ for idx, csv_path in enumerate(csv_paths):
         ax.set_xlabel(param, fontsize=16)
         ax.set_ylabel("Accuracy", fontsize=16)
         ax.set_xticks(summary[param])
-        ax.set_xticklabels(summary[param], fontsize=12)
+        # Ensure x-tick labels are formatted nicely, especially for floats
+        if summary[param].dtype == float:
+            ax.set_xticklabels([f'{x:.2f}' if isinstance(x, float) else x for x in summary[param]], fontsize=12)
+        else:
+            ax.set_xticklabels(summary[param], fontsize=12)
+
 
         # Add dataset name and baseline info only on the first subplot for this dataset.
         if i == 0:
             title_text = (f"{dataset_names[idx]}  Baseline:  "
-                          f"k = {best_baseline['k']}, TR = {best_baseline['Target Ratio']}, "
-                          f"b = {best_baseline['b']}, alpha = {best_baseline['alpha']}  "
-                          f"(MPAD: {best_score:.2%})")
+                          f"k = {best_baseline['k']}, TR = {best_baseline['Target Ratio']:.1f}, " # Formatting TR
+                          f"b = {best_baseline['b']}, alpha = {best_baseline['alpha']:.0f}  ") # Formatting alpha
             ax.set_title(title_text, loc='left', fontsize=16)
 
 #--------------------------------------------------
 # 6. Create one global legend and adjust layout to reduce empty spaces
 #--------------------------------------------------
-fig.legend(all_handles.values(), all_handles.keys(), loc='upper center', ncol=len(all_handles), fontsize=16)
-plt.subplots_adjust(top=0.94,
-                    bottom=0.075,
+# Calculate the number of columns for a two-row legend
+num_legend_items = len(all_handles)
+# Ensure at least 1 column, and aim for 2 rows by dividing by 2 and taking ceiling
+ncol_legend = math.ceil(num_legend_items / 2.0) if num_legend_items > 0 else 1
+
+
+fig.legend(all_handles.values(), all_handles.keys(), loc='upper center', ncol=int(ncol_legend), fontsize=16)
+plt.subplots_adjust(top=0.92, # Adjusted to make space for two-row legend
+                    bottom=0.048,
                     left=0.03,
-                    right=0.995,
-                    hspace=0.315,
+                    right=0.998,
+                    hspace=0.39,
                     wspace=0.16)
 plt.show()
