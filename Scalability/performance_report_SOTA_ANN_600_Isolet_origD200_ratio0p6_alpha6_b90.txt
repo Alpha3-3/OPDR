@@ -1,0 +1,303 @@
+--- SOTA ANN Performance Report (Isolet Dataset: 600_Isolet, Params: origD200_ratio0p6_alpha6_b90) ---
+
+Test Iteration for Training File: training_vectors_600_Isolet.npy
+Total Time for this Test Iteration: 8954.2712s
+Initial Memory (at script start): 725.21 MB
+Memory (after loading training_vectors_600_Isolet.npy): 843.79 MB
+
+--- Aggregated Timings for this Dataset ---
+Dimensionality Reduction Methods (Total Time for this dataset run):
+  - dw_pmad: 8842.0859s
+  - pca: 0.4532s
+  - umap: 4.1383s
+  - isomap: 0.5049s
+  - kernel_pca: 0.5713s
+  - mds: 5.1743s
+  - RandomProjection: 0.0000s
+  - FastICA: 0.0000s
+  - tSNE: 0.0000s
+  - NMF: 0.0000s
+  - LLE: 0.0000s
+  - FeatureAgglomeration: 0.0000s
+  - Autoencoder: 0.0000s
+  - VAE: 0.0000s
+
+Accuracy Checking Methods (Total Time, Summed over all k-values for this dataset run, per DR method):
+  - Accuracy Method: Exact_kNN
+    - On dw_pmad reduced data: 7.2083s
+    - On pca reduced data: 7.2084s
+    - On umap reduced data: 7.2281s
+    - On isomap reduced data: 7.2085s
+    - On kernel_pca reduced data: 7.2005s
+    - On mds reduced data: 54.9127s
+    - On RandomProjection reduced data: 0.0000s
+    - On FastICA reduced data: 0.0000s
+    - On tSNE reduced data: 0.0000s
+    - On NMF reduced data: 0.0000s
+    - On LLE reduced data: 0.0000s
+    - On FeatureAgglomeration reduced data: 0.0000s
+    - On Autoencoder reduced data: 0.0000s
+    - On VAE reduced data: 0.0000s
+  - Accuracy Method: HNSWFlat_Faiss
+    - On dw_pmad reduced data: 0.0329s
+    - On pca reduced data: 0.0327s
+    - On umap reduced data: 0.0323s
+    - On isomap reduced data: 0.0328s
+    - On kernel_pca reduced data: 0.0327s
+    - On mds reduced data: 0.1165s
+    - On RandomProjection reduced data: 0.0000s
+    - On FastICA reduced data: 0.0000s
+    - On tSNE reduced data: 0.0000s
+    - On NMF reduced data: 0.0000s
+    - On LLE reduced data: 0.0000s
+    - On FeatureAgglomeration reduced data: 0.0000s
+    - On Autoencoder reduced data: 0.0000s
+    - On VAE reduced data: 0.0000s
+  - Accuracy Method: IVFPQ_Faiss
+    - On dw_pmad reduced data: 0.1224s
+    - On pca reduced data: 0.1229s
+    - On umap reduced data: 0.1227s
+    - On isomap reduced data: 0.1226s
+    - On kernel_pca reduced data: 0.1227s
+    - On mds reduced data: 0.1205s
+    - On RandomProjection reduced data: 0.0000s
+    - On FastICA reduced data: 0.0000s
+    - On tSNE reduced data: 0.0000s
+    - On NMF reduced data: 0.0000s
+    - On LLE reduced data: 0.0000s
+    - On FeatureAgglomeration reduced data: 0.0000s
+    - On Autoencoder reduced data: 0.0000s
+    - On VAE reduced data: 0.0000s
+  - Accuracy Method: HNSWPQ_Faiss
+    - On dw_pmad reduced data: 0.0011s
+    - On pca reduced data: 0.0011s
+    - On umap reduced data: 0.0011s
+    - On isomap reduced data: 0.0011s
+    - On kernel_pca reduced data: 0.0011s
+    - On mds reduced data: 0.0008s
+    - On RandomProjection reduced data: 0.0000s
+    - On FastICA reduced data: 0.0000s
+    - On tSNE reduced data: 0.0000s
+    - On NMF reduced data: 0.0000s
+    - On LLE reduced data: 0.0000s
+    - On FeatureAgglomeration reduced data: 0.0000s
+    - On Autoencoder reduced data: 0.0000s
+    - On VAE reduced data: 0.0000s
+  - Accuracy Method: IVFOPQ_Faiss
+    - On dw_pmad reduced data: 0.0240s
+    - On pca reduced data: 0.0240s
+    - On umap reduced data: 0.0257s
+    - On isomap reduced data: 0.0242s
+    - On kernel_pca reduced data: 0.0242s
+    - On mds reduced data: 0.0239s
+    - On RandomProjection reduced data: 0.0000s
+    - On FastICA reduced data: 0.0000s
+    - On tSNE reduced data: 0.0000s
+    - On NMF reduced data: 0.0000s
+    - On LLE reduced data: 0.0000s
+    - On FeatureAgglomeration reduced data: 0.0000s
+    - On Autoencoder reduced data: 0.0000s
+    - On VAE reduced data: 0.0000s
+
+--- Detailed Timings and Memory for this Dataset Run ---
+
+Run Details (Params Config: DimSel:200, TgtRatio:0.6, b:90, alpha:6, Actual Orig Dim: 200, Final DR Target Dim: 120)
+  Time - Standardization: 0.0007s
+  Memory - After Standardization: 843.79 MB
+  DR Method Timings:
+    dw_pmad: 8842.0859s
+    pca: 0.4532s
+    umap: 4.1383s
+    isomap: 0.5049s
+    kernel_pca: 0.5713s
+    mds: 5.1743s
+  Memory - After Each DR Method:
+    After dw_pmad: 843.75 MB
+    After pca: 843.75 MB
+    After umap: 843.75 MB
+    After isomap: 859.73 MB
+    After kernel_pca: 904.07 MB
+    After mds: 908.35 MB
+  Accuracy Calculation Times (per k, per accuracy method, per DR method):
+    For k=1:
+      Accuracy Method: Exact_kNN
+        Time on dw_pmad reduced data: 1.4346s
+        Time on pca reduced data: 1.4254s
+        Time on umap reduced data: 1.4359s
+        Time on isomap reduced data: 1.4275s
+        Time on kernel_pca reduced data: 1.4346s
+        Time on mds reduced data: 10.6957s
+      Accuracy Method: HNSWFlat_Faiss
+        Time on dw_pmad reduced data: 0.0058s
+        Time on pca reduced data: 0.0058s
+        Time on umap reduced data: 0.0055s
+        Time on isomap reduced data: 0.0059s
+        Time on kernel_pca reduced data: 0.0059s
+        Time on mds reduced data: 0.0207s
+      Accuracy Method: IVFPQ_Faiss
+        Time on dw_pmad reduced data: 0.0233s
+        Time on pca reduced data: 0.0238s
+        Time on umap reduced data: 0.0236s
+        Time on isomap reduced data: 0.0238s
+        Time on kernel_pca reduced data: 0.0237s
+        Time on mds reduced data: 0.0232s
+      Accuracy Method: HNSWPQ_Faiss
+        Time on dw_pmad reduced data: 0.0002s
+        Time on pca reduced data: 0.0002s
+        Time on umap reduced data: 0.0002s
+        Time on isomap reduced data: 0.0002s
+        Time on kernel_pca reduced data: 0.0002s
+        Time on mds reduced data: 0.0002s
+      Accuracy Method: IVFOPQ_Faiss
+        Time on dw_pmad reduced data: 0.0048s
+        Time on pca reduced data: 0.0048s
+        Time on umap reduced data: 0.0048s
+        Time on isomap reduced data: 0.0048s
+        Time on kernel_pca reduced data: 0.0048s
+        Time on mds reduced data: 0.0048s
+    For k=3:
+      Accuracy Method: Exact_kNN
+        Time on dw_pmad reduced data: 1.4455s
+        Time on pca reduced data: 1.4602s
+        Time on umap reduced data: 1.4656s
+        Time on isomap reduced data: 1.4559s
+        Time on kernel_pca reduced data: 1.4543s
+        Time on mds reduced data: 11.0780s
+      Accuracy Method: HNSWFlat_Faiss
+        Time on dw_pmad reduced data: 0.0061s
+        Time on pca reduced data: 0.0061s
+        Time on umap reduced data: 0.0058s
+        Time on isomap reduced data: 0.0060s
+        Time on kernel_pca reduced data: 0.0060s
+        Time on mds reduced data: 0.0123s
+      Accuracy Method: IVFPQ_Faiss
+        Time on dw_pmad reduced data: 0.0240s
+        Time on pca reduced data: 0.0239s
+        Time on umap reduced data: 0.0240s
+        Time on isomap reduced data: 0.0240s
+        Time on kernel_pca reduced data: 0.0240s
+        Time on mds reduced data: 0.0236s
+      Accuracy Method: HNSWPQ_Faiss
+        Time on dw_pmad reduced data: 0.0002s
+        Time on pca reduced data: 0.0002s
+        Time on umap reduced data: 0.0002s
+        Time on isomap reduced data: 0.0002s
+        Time on kernel_pca reduced data: 0.0002s
+        Time on mds reduced data: 0.0002s
+      Accuracy Method: IVFOPQ_Faiss
+        Time on dw_pmad reduced data: 0.0048s
+        Time on pca reduced data: 0.0048s
+        Time on umap reduced data: 0.0048s
+        Time on isomap reduced data: 0.0048s
+        Time on kernel_pca reduced data: 0.0048s
+        Time on mds reduced data: 0.0048s
+    For k=6:
+      Accuracy Method: Exact_kNN
+        Time on dw_pmad reduced data: 1.4377s
+        Time on pca reduced data: 1.4390s
+        Time on umap reduced data: 1.4367s
+        Time on isomap reduced data: 1.4383s
+        Time on kernel_pca reduced data: 1.4349s
+        Time on mds reduced data: 11.0162s
+      Accuracy Method: HNSWFlat_Faiss
+        Time on dw_pmad reduced data: 0.0064s
+        Time on pca reduced data: 0.0065s
+        Time on umap reduced data: 0.0061s
+        Time on isomap reduced data: 0.0065s
+        Time on kernel_pca reduced data: 0.0065s
+        Time on mds reduced data: 0.0225s
+      Accuracy Method: IVFPQ_Faiss
+        Time on dw_pmad reduced data: 0.0246s
+        Time on pca reduced data: 0.0246s
+        Time on umap reduced data: 0.0240s
+        Time on isomap reduced data: 0.0244s
+        Time on kernel_pca reduced data: 0.0246s
+        Time on mds reduced data: 0.0240s
+      Accuracy Method: HNSWPQ_Faiss
+        Time on dw_pmad reduced data: 0.0002s
+        Time on pca reduced data: 0.0002s
+        Time on umap reduced data: 0.0002s
+        Time on isomap reduced data: 0.0002s
+        Time on kernel_pca reduced data: 0.0002s
+        Time on mds reduced data: 0.0002s
+      Accuracy Method: IVFOPQ_Faiss
+        Time on dw_pmad reduced data: 0.0048s
+        Time on pca reduced data: 0.0048s
+        Time on umap reduced data: 0.0047s
+        Time on isomap reduced data: 0.0048s
+        Time on kernel_pca reduced data: 0.0049s
+        Time on mds reduced data: 0.0048s
+    For k=10:
+      Accuracy Method: Exact_kNN
+        Time on dw_pmad reduced data: 1.4440s
+        Time on pca reduced data: 1.4362s
+        Time on umap reduced data: 1.4457s
+        Time on isomap reduced data: 1.4382s
+        Time on kernel_pca reduced data: 1.4350s
+        Time on mds reduced data: 11.1188s
+      Accuracy Method: HNSWFlat_Faiss
+        Time on dw_pmad reduced data: 0.0069s
+        Time on pca reduced data: 0.0070s
+        Time on umap reduced data: 0.0076s
+        Time on isomap reduced data: 0.0070s
+        Time on kernel_pca reduced data: 0.0070s
+        Time on mds reduced data: 0.0302s
+      Accuracy Method: IVFPQ_Faiss
+        Time on dw_pmad reduced data: 0.0250s
+        Time on pca reduced data: 0.0251s
+        Time on umap reduced data: 0.0258s
+        Time on isomap reduced data: 0.0249s
+        Time on kernel_pca reduced data: 0.0250s
+        Time on mds reduced data: 0.0248s
+      Accuracy Method: HNSWPQ_Faiss
+        Time on dw_pmad reduced data: 0.0002s
+        Time on pca reduced data: 0.0002s
+        Time on umap reduced data: 0.0002s
+        Time on isomap reduced data: 0.0002s
+        Time on kernel_pca reduced data: 0.0002s
+        Time on mds reduced data: 0.0002s
+      Accuracy Method: IVFOPQ_Faiss
+        Time on dw_pmad reduced data: 0.0048s
+        Time on pca reduced data: 0.0048s
+        Time on umap reduced data: 0.0065s
+        Time on isomap reduced data: 0.0048s
+        Time on kernel_pca reduced data: 0.0048s
+        Time on mds reduced data: 0.0048s
+    For k=15:
+      Accuracy Method: Exact_kNN
+        Time on dw_pmad reduced data: 1.4465s
+        Time on pca reduced data: 1.4476s
+        Time on umap reduced data: 1.4442s
+        Time on isomap reduced data: 1.4486s
+        Time on kernel_pca reduced data: 1.4418s
+        Time on mds reduced data: 11.0039s
+      Accuracy Method: HNSWFlat_Faiss
+        Time on dw_pmad reduced data: 0.0076s
+        Time on pca reduced data: 0.0075s
+        Time on umap reduced data: 0.0073s
+        Time on isomap reduced data: 0.0075s
+        Time on kernel_pca reduced data: 0.0074s
+        Time on mds reduced data: 0.0309s
+      Accuracy Method: IVFPQ_Faiss
+        Time on dw_pmad reduced data: 0.0255s
+        Time on pca reduced data: 0.0255s
+        Time on umap reduced data: 0.0254s
+        Time on isomap reduced data: 0.0255s
+        Time on kernel_pca reduced data: 0.0254s
+        Time on mds reduced data: 0.0250s
+      Accuracy Method: HNSWPQ_Faiss
+        Time on dw_pmad reduced data: 0.0002s
+        Time on pca reduced data: 0.0002s
+        Time on umap reduced data: 0.0002s
+        Time on isomap reduced data: 0.0002s
+        Time on kernel_pca reduced data: 0.0002s
+        Time on mds reduced data: 0.0002s
+      Accuracy Method: IVFOPQ_Faiss
+        Time on dw_pmad reduced data: 0.0048s
+        Time on pca reduced data: 0.0048s
+        Time on umap reduced data: 0.0048s
+        Time on isomap reduced data: 0.0048s
+        Time on kernel_pca reduced data: 0.0048s
+        Time on mds reduced data: 0.0048s
+  Memory - After All Accuracy Calcs for this run: 908.98 MB
+  Peak Memory Observed During this run: 908.98 MB

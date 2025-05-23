@@ -1,0 +1,519 @@
+--- SOTA ANN Performance Report (PBMC3k Dataset: 600_PBMC3k, Params: origD200_ratio0p6_alpha6_b90) ---
+
+Test Iteration for Training File: training_vectors_600_PBMC3k.npy
+Total Time for this Test Iteration: 6419.7396s
+Initial Memory (at script start): 728.39 MB
+Memory (after loading training_vectors_600_PBMC3k.npy): 912.27 MB
+
+--- Aggregated Timings for this Dataset ---
+Dimensionality Reduction Methods (Total Time for this dataset run):
+  - dw_pmad: 6248.5941s
+  - pca: 0.3729s
+  - umap: 3.2652s
+  - isomap: 0.3009s
+  - kernel_pca: 0.3576s
+  - mds: 3.9149s
+  - RandomProjection: 0.0396s
+  - FastICA: 0.8368s
+  - tSNE: 10.9110s
+  - NMF: 4.1948s
+  - LLE: 0.4698s
+  - FeatureAgglomeration: 0.0094s
+  - Autoencoder: 1.6796s
+  - VAE: 0.0314s
+
+Accuracy Checking Methods (Total Time, Summed over all k-values for this dataset run, per DR method):
+  - Accuracy Method: Exact_kNN
+    - On dw_pmad reduced data: 5.9084s
+    - On pca reduced data: 5.8877s
+    - On umap reduced data: 5.9065s
+    - On isomap reduced data: 5.8809s
+    - On kernel_pca reduced data: 5.8860s
+    - On mds reduced data: 43.4153s
+    - On RandomProjection reduced data: 5.9379s
+    - On FastICA reduced data: 5.9587s
+    - On tSNE reduced data: 29.7358s
+    - On NMF reduced data: 5.9473s
+    - On LLE reduced data: 4.1861s
+    - On FeatureAgglomeration reduced data: 4.1616s
+    - On Autoencoder reduced data: 5.9276s
+    - On VAE reduced data: 0.0000s
+  - Accuracy Method: HNSWFlat_Faiss
+    - On dw_pmad reduced data: 0.0318s
+    - On pca reduced data: 0.0280s
+    - On umap reduced data: 0.0243s
+    - On isomap reduced data: 0.0287s
+    - On kernel_pca reduced data: 0.0820s
+    - On mds reduced data: 0.1255s
+    - On RandomProjection reduced data: 0.0345s
+    - On FastICA reduced data: 0.0741s
+    - On tSNE reduced data: 0.0903s
+    - On NMF reduced data: 0.0246s
+    - On LLE reduced data: 0.0593s
+    - On FeatureAgglomeration reduced data: 0.0348s
+    - On Autoencoder reduced data: 0.0266s
+    - On VAE reduced data: 0.0000s
+  - Accuracy Method: IVFPQ_Faiss
+    - On dw_pmad reduced data: 0.1009s
+    - On pca reduced data: 0.1011s
+    - On umap reduced data: 0.1008s
+    - On isomap reduced data: 0.1007s
+    - On kernel_pca reduced data: 0.1051s
+    - On mds reduced data: 0.1004s
+    - On RandomProjection reduced data: 0.1007s
+    - On FastICA reduced data: 0.1013s
+    - On tSNE reduced data: 0.0250s
+    - On NMF reduced data: 0.1016s
+    - On LLE reduced data: 0.1015s
+    - On FeatureAgglomeration reduced data: 0.1019s
+    - On Autoencoder reduced data: 0.1007s
+    - On VAE reduced data: 0.0000s
+  - Accuracy Method: HNSWPQ_Faiss
+    - On dw_pmad reduced data: 0.0009s
+    - On pca reduced data: 0.0009s
+    - On umap reduced data: 0.0009s
+    - On isomap reduced data: 0.0009s
+    - On kernel_pca reduced data: 0.0009s
+    - On mds reduced data: 0.0007s
+    - On RandomProjection reduced data: 0.0009s
+    - On FastICA reduced data: 0.0009s
+    - On tSNE reduced data: 0.0007s
+    - On NMF reduced data: 0.0009s
+    - On LLE reduced data: 0.0009s
+    - On FeatureAgglomeration reduced data: 0.0009s
+    - On Autoencoder reduced data: 0.0009s
+    - On VAE reduced data: 0.0000s
+  - Accuracy Method: IVFOPQ_Faiss
+    - On dw_pmad reduced data: 0.0170s
+    - On pca reduced data: 0.0170s
+    - On umap reduced data: 0.0170s
+    - On isomap reduced data: 0.0170s
+    - On kernel_pca reduced data: 0.0169s
+    - On mds reduced data: 0.0169s
+    - On RandomProjection reduced data: 0.0169s
+    - On FastICA reduced data: 0.0170s
+    - On tSNE reduced data: 0.0167s
+    - On NMF reduced data: 0.0170s
+    - On LLE reduced data: 0.0170s
+    - On FeatureAgglomeration reduced data: 0.0171s
+    - On Autoencoder reduced data: 0.0170s
+    - On VAE reduced data: 0.0000s
+
+--- Detailed Timings and Memory for this Dataset Run ---
+
+Run Details (Params Config: DimSel:200, TgtRatio:0.6, b:90, alpha:6, Actual Orig Dim: 200, Final DR Target Dim: 120)
+  Time - Standardization: 0.0005s
+  Memory - After Standardization: 912.27 MB
+  DR Method Timings:
+    dw_pmad: 6248.5941s
+    pca: 0.3729s
+    umap: 3.2652s
+    isomap: 0.3009s
+    kernel_pca: 0.3576s
+    mds: 3.9149s
+    RandomProjection: 0.0396s
+    FastICA: 0.8368s
+    tSNE: 10.9110s
+    NMF: 4.1948s
+    LLE: 0.4698s
+    FeatureAgglomeration: 0.0094s
+    Autoencoder: 1.6796s
+    VAE: 0.0314s
+  Memory - After Each DR Method:
+    After dw_pmad: 912.22 MB
+    After pca: 912.22 MB
+    After umap: 912.22 MB
+    After isomap: 926.67 MB
+    After kernel_pca: 986.64 MB
+    After mds: 991.60 MB
+    After RandomProjection: 991.60 MB
+    After FastICA: 991.85 MB
+    After tSNE: 991.85 MB
+    After NMF: 991.85 MB
+    After LLE: 994.47 MB
+    After FeatureAgglomeration: 994.47 MB
+    After Autoencoder: 969.93 MB
+    After VAE: 969.93 MB
+  Accuracy Calculation Times (per k, per accuracy method, per DR method):
+    For k=1:
+      Accuracy Method: Exact_kNN
+        Time on dw_pmad reduced data: 1.1739s
+        Time on pca reduced data: 1.1672s
+        Time on umap reduced data: 1.1743s
+        Time on isomap reduced data: 1.1688s
+        Time on kernel_pca reduced data: 1.1762s
+        Time on mds reduced data: 8.6522s
+        Time on RandomProjection reduced data: 1.1759s
+        Time on FastICA reduced data: 1.1845s
+        Time on tSNE reduced data: 5.9542s
+        Time on NMF reduced data: 1.1937s
+        Time on LLE reduced data: 0.8420s
+        Time on FeatureAgglomeration reduced data: 0.8363s
+        Time on Autoencoder reduced data: 1.1868s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: HNSWFlat_Faiss
+        Time on dw_pmad reduced data: 0.0049s
+        Time on pca reduced data: 0.0050s
+        Time on umap reduced data: 0.0044s
+        Time on isomap reduced data: 0.0052s
+        Time on kernel_pca reduced data: 0.0172s
+        Time on mds reduced data: 0.0351s
+        Time on RandomProjection reduced data: 0.0068s
+        Time on FastICA reduced data: 0.0171s
+        Time on tSNE reduced data: 0.0026s
+        Time on NMF reduced data: 0.0044s
+        Time on LLE reduced data: 0.0156s
+        Time on FeatureAgglomeration reduced data: 0.0053s
+        Time on Autoencoder reduced data: 0.0048s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: IVFPQ_Faiss
+        Time on dw_pmad reduced data: 0.0196s
+        Time on pca reduced data: 0.0198s
+        Time on umap reduced data: 0.0195s
+        Time on isomap reduced data: 0.0194s
+        Time on kernel_pca reduced data: 0.0194s
+        Time on mds reduced data: 0.0194s
+        Time on RandomProjection reduced data: 0.0197s
+        Time on FastICA reduced data: 0.0199s
+        Time on tSNE reduced data: 0.0060s
+        Time on NMF reduced data: 0.0200s
+        Time on LLE reduced data: 0.0197s
+        Time on FeatureAgglomeration reduced data: 0.0199s
+        Time on Autoencoder reduced data: 0.0197s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: HNSWPQ_Faiss
+        Time on dw_pmad reduced data: 0.0002s
+        Time on pca reduced data: 0.0002s
+        Time on umap reduced data: 0.0002s
+        Time on isomap reduced data: 0.0002s
+        Time on kernel_pca reduced data: 0.0002s
+        Time on mds reduced data: 0.0002s
+        Time on RandomProjection reduced data: 0.0002s
+        Time on FastICA reduced data: 0.0002s
+        Time on tSNE reduced data: 0.0002s
+        Time on NMF reduced data: 0.0002s
+        Time on LLE reduced data: 0.0002s
+        Time on FeatureAgglomeration reduced data: 0.0002s
+        Time on Autoencoder reduced data: 0.0002s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: IVFOPQ_Faiss
+        Time on dw_pmad reduced data: 0.0034s
+        Time on pca reduced data: 0.0034s
+        Time on umap reduced data: 0.0034s
+        Time on isomap reduced data: 0.0034s
+        Time on kernel_pca reduced data: 0.0034s
+        Time on mds reduced data: 0.0034s
+        Time on RandomProjection reduced data: 0.0034s
+        Time on FastICA reduced data: 0.0034s
+        Time on tSNE reduced data: 0.0033s
+        Time on NMF reduced data: 0.0034s
+        Time on LLE reduced data: 0.0034s
+        Time on FeatureAgglomeration reduced data: 0.0034s
+        Time on Autoencoder reduced data: 0.0034s
+        Time on VAE reduced data: 0.0000s
+    For k=3:
+      Accuracy Method: Exact_kNN
+        Time on dw_pmad reduced data: 1.1834s
+        Time on pca reduced data: 1.1804s
+        Time on umap reduced data: 1.1791s
+        Time on isomap reduced data: 1.1780s
+        Time on kernel_pca reduced data: 1.1727s
+        Time on mds reduced data: 8.8818s
+        Time on RandomProjection reduced data: 1.1826s
+        Time on FastICA reduced data: 1.1877s
+        Time on tSNE reduced data: 5.9474s
+        Time on NMF reduced data: 1.1877s
+        Time on LLE reduced data: 0.8395s
+        Time on FeatureAgglomeration reduced data: 0.8309s
+        Time on Autoencoder reduced data: 1.1940s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: HNSWFlat_Faiss
+        Time on dw_pmad reduced data: 0.0051s
+        Time on pca reduced data: 0.0053s
+        Time on umap reduced data: 0.0045s
+        Time on isomap reduced data: 0.0051s
+        Time on kernel_pca reduced data: 0.0127s
+        Time on mds reduced data: 0.0108s
+        Time on RandomProjection reduced data: 0.0063s
+        Time on FastICA reduced data: 0.0150s
+        Time on tSNE reduced data: 0.0223s
+        Time on NMF reduced data: 0.0046s
+        Time on LLE reduced data: 0.0102s
+        Time on FeatureAgglomeration reduced data: 0.0052s
+        Time on Autoencoder reduced data: 0.0050s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: IVFPQ_Faiss
+        Time on dw_pmad reduced data: 0.0200s
+        Time on pca reduced data: 0.0199s
+        Time on umap reduced data: 0.0199s
+        Time on isomap reduced data: 0.0199s
+        Time on kernel_pca reduced data: 0.0198s
+        Time on mds reduced data: 0.0196s
+        Time on RandomProjection reduced data: 0.0198s
+        Time on FastICA reduced data: 0.0197s
+        Time on tSNE reduced data: 0.0043s
+        Time on NMF reduced data: 0.0200s
+        Time on LLE reduced data: 0.0199s
+        Time on FeatureAgglomeration reduced data: 0.0200s
+        Time on Autoencoder reduced data: 0.0198s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: HNSWPQ_Faiss
+        Time on dw_pmad reduced data: 0.0002s
+        Time on pca reduced data: 0.0002s
+        Time on umap reduced data: 0.0002s
+        Time on isomap reduced data: 0.0002s
+        Time on kernel_pca reduced data: 0.0002s
+        Time on mds reduced data: 0.0001s
+        Time on RandomProjection reduced data: 0.0002s
+        Time on FastICA reduced data: 0.0002s
+        Time on tSNE reduced data: 0.0001s
+        Time on NMF reduced data: 0.0002s
+        Time on LLE reduced data: 0.0002s
+        Time on FeatureAgglomeration reduced data: 0.0002s
+        Time on Autoencoder reduced data: 0.0002s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: IVFOPQ_Faiss
+        Time on dw_pmad reduced data: 0.0034s
+        Time on pca reduced data: 0.0034s
+        Time on umap reduced data: 0.0034s
+        Time on isomap reduced data: 0.0034s
+        Time on kernel_pca reduced data: 0.0034s
+        Time on mds reduced data: 0.0034s
+        Time on RandomProjection reduced data: 0.0034s
+        Time on FastICA reduced data: 0.0034s
+        Time on tSNE reduced data: 0.0033s
+        Time on NMF reduced data: 0.0034s
+        Time on LLE reduced data: 0.0034s
+        Time on FeatureAgglomeration reduced data: 0.0034s
+        Time on Autoencoder reduced data: 0.0034s
+        Time on VAE reduced data: 0.0000s
+    For k=6:
+      Accuracy Method: Exact_kNN
+        Time on dw_pmad reduced data: 1.1831s
+        Time on pca reduced data: 1.1845s
+        Time on umap reduced data: 1.1827s
+        Time on isomap reduced data: 1.1804s
+        Time on kernel_pca reduced data: 1.1763s
+        Time on mds reduced data: 8.5622s
+        Time on RandomProjection reduced data: 1.1859s
+        Time on FastICA reduced data: 1.1903s
+        Time on tSNE reduced data: 5.9638s
+        Time on NMF reduced data: 1.1843s
+        Time on LLE reduced data: 0.8398s
+        Time on FeatureAgglomeration reduced data: 0.8287s
+        Time on Autoencoder reduced data: 1.1860s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: HNSWFlat_Faiss
+        Time on dw_pmad reduced data: 0.0054s
+        Time on pca reduced data: 0.0056s
+        Time on umap reduced data: 0.0048s
+        Time on isomap reduced data: 0.0063s
+        Time on kernel_pca reduced data: 0.0161s
+        Time on mds reduced data: 0.0251s
+        Time on RandomProjection reduced data: 0.0070s
+        Time on FastICA reduced data: 0.0114s
+        Time on tSNE reduced data: 0.0168s
+        Time on NMF reduced data: 0.0049s
+        Time on LLE reduced data: 0.0111s
+        Time on FeatureAgglomeration reduced data: 0.0120s
+        Time on Autoencoder reduced data: 0.0052s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: IVFPQ_Faiss
+        Time on dw_pmad reduced data: 0.0202s
+        Time on pca reduced data: 0.0201s
+        Time on umap reduced data: 0.0203s
+        Time on isomap reduced data: 0.0202s
+        Time on kernel_pca reduced data: 0.0202s
+        Time on mds reduced data: 0.0203s
+        Time on RandomProjection reduced data: 0.0201s
+        Time on FastICA reduced data: 0.0202s
+        Time on tSNE reduced data: 0.0046s
+        Time on NMF reduced data: 0.0203s
+        Time on LLE reduced data: 0.0204s
+        Time on FeatureAgglomeration reduced data: 0.0202s
+        Time on Autoencoder reduced data: 0.0203s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: HNSWPQ_Faiss
+        Time on dw_pmad reduced data: 0.0002s
+        Time on pca reduced data: 0.0002s
+        Time on umap reduced data: 0.0002s
+        Time on isomap reduced data: 0.0002s
+        Time on kernel_pca reduced data: 0.0002s
+        Time on mds reduced data: 0.0002s
+        Time on RandomProjection reduced data: 0.0002s
+        Time on FastICA reduced data: 0.0002s
+        Time on tSNE reduced data: 0.0001s
+        Time on NMF reduced data: 0.0002s
+        Time on LLE reduced data: 0.0002s
+        Time on FeatureAgglomeration reduced data: 0.0002s
+        Time on Autoencoder reduced data: 0.0002s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: IVFOPQ_Faiss
+        Time on dw_pmad reduced data: 0.0034s
+        Time on pca reduced data: 0.0034s
+        Time on umap reduced data: 0.0034s
+        Time on isomap reduced data: 0.0034s
+        Time on kernel_pca reduced data: 0.0034s
+        Time on mds reduced data: 0.0034s
+        Time on RandomProjection reduced data: 0.0034s
+        Time on FastICA reduced data: 0.0034s
+        Time on tSNE reduced data: 0.0034s
+        Time on NMF reduced data: 0.0034s
+        Time on LLE reduced data: 0.0034s
+        Time on FeatureAgglomeration reduced data: 0.0035s
+        Time on Autoencoder reduced data: 0.0034s
+        Time on VAE reduced data: 0.0000s
+    For k=10:
+      Accuracy Method: Exact_kNN
+        Time on dw_pmad reduced data: 1.1818s
+        Time on pca reduced data: 1.1782s
+        Time on umap reduced data: 1.1834s
+        Time on isomap reduced data: 1.1760s
+        Time on kernel_pca reduced data: 1.1799s
+        Time on mds reduced data: 8.6471s
+        Time on RandomProjection reduced data: 1.1825s
+        Time on FastICA reduced data: 1.1800s
+        Time on tSNE reduced data: 5.9295s
+        Time on NMF reduced data: 1.1955s
+        Time on LLE reduced data: 0.8369s
+        Time on FeatureAgglomeration reduced data: 0.8351s
+        Time on Autoencoder reduced data: 1.1820s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: HNSWFlat_Faiss
+        Time on dw_pmad reduced data: 0.0103s
+        Time on pca reduced data: 0.0059s
+        Time on umap reduced data: 0.0051s
+        Time on isomap reduced data: 0.0059s
+        Time on kernel_pca reduced data: 0.0163s
+        Time on mds reduced data: 0.0315s
+        Time on RandomProjection reduced data: 0.0068s
+        Time on FastICA reduced data: 0.0144s
+        Time on tSNE reduced data: 0.0151s
+        Time on NMF reduced data: 0.0051s
+        Time on LLE reduced data: 0.0110s
+        Time on FeatureAgglomeration reduced data: 0.0060s
+        Time on Autoencoder reduced data: 0.0056s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: IVFPQ_Faiss
+        Time on dw_pmad reduced data: 0.0203s
+        Time on pca reduced data: 0.0204s
+        Time on umap reduced data: 0.0204s
+        Time on isomap reduced data: 0.0205s
+        Time on kernel_pca reduced data: 0.0250s
+        Time on mds reduced data: 0.0205s
+        Time on RandomProjection reduced data: 0.0205s
+        Time on FastICA reduced data: 0.0206s
+        Time on tSNE reduced data: 0.0049s
+        Time on NMF reduced data: 0.0205s
+        Time on LLE reduced data: 0.0206s
+        Time on FeatureAgglomeration reduced data: 0.0206s
+        Time on Autoencoder reduced data: 0.0204s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: HNSWPQ_Faiss
+        Time on dw_pmad reduced data: 0.0001s
+        Time on pca reduced data: 0.0002s
+        Time on umap reduced data: 0.0002s
+        Time on isomap reduced data: 0.0002s
+        Time on kernel_pca reduced data: 0.0002s
+        Time on mds reduced data: 0.0002s
+        Time on RandomProjection reduced data: 0.0002s
+        Time on FastICA reduced data: 0.0002s
+        Time on tSNE reduced data: 0.0001s
+        Time on NMF reduced data: 0.0002s
+        Time on LLE reduced data: 0.0002s
+        Time on FeatureAgglomeration reduced data: 0.0002s
+        Time on Autoencoder reduced data: 0.0002s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: IVFOPQ_Faiss
+        Time on dw_pmad reduced data: 0.0034s
+        Time on pca reduced data: 0.0034s
+        Time on umap reduced data: 0.0034s
+        Time on isomap reduced data: 0.0034s
+        Time on kernel_pca reduced data: 0.0034s
+        Time on mds reduced data: 0.0034s
+        Time on RandomProjection reduced data: 0.0034s
+        Time on FastICA reduced data: 0.0034s
+        Time on tSNE reduced data: 0.0034s
+        Time on NMF reduced data: 0.0034s
+        Time on LLE reduced data: 0.0034s
+        Time on FeatureAgglomeration reduced data: 0.0034s
+        Time on Autoencoder reduced data: 0.0034s
+        Time on VAE reduced data: 0.0000s
+    For k=15:
+      Accuracy Method: Exact_kNN
+        Time on dw_pmad reduced data: 1.1863s
+        Time on pca reduced data: 1.1775s
+        Time on umap reduced data: 1.1870s
+        Time on isomap reduced data: 1.1776s
+        Time on kernel_pca reduced data: 1.1810s
+        Time on mds reduced data: 8.6720s
+        Time on RandomProjection reduced data: 1.2111s
+        Time on FastICA reduced data: 1.2162s
+        Time on tSNE reduced data: 5.9409s
+        Time on NMF reduced data: 1.1861s
+        Time on LLE reduced data: 0.8279s
+        Time on FeatureAgglomeration reduced data: 0.8306s
+        Time on Autoencoder reduced data: 1.1788s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: HNSWFlat_Faiss
+        Time on dw_pmad reduced data: 0.0060s
+        Time on pca reduced data: 0.0062s
+        Time on umap reduced data: 0.0055s
+        Time on isomap reduced data: 0.0061s
+        Time on kernel_pca reduced data: 0.0196s
+        Time on mds reduced data: 0.0231s
+        Time on RandomProjection reduced data: 0.0075s
+        Time on FastICA reduced data: 0.0163s
+        Time on tSNE reduced data: 0.0335s
+        Time on NMF reduced data: 0.0055s
+        Time on LLE reduced data: 0.0114s
+        Time on FeatureAgglomeration reduced data: 0.0064s
+        Time on Autoencoder reduced data: 0.0060s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: IVFPQ_Faiss
+        Time on dw_pmad reduced data: 0.0209s
+        Time on pca reduced data: 0.0210s
+        Time on umap reduced data: 0.0208s
+        Time on isomap reduced data: 0.0208s
+        Time on kernel_pca reduced data: 0.0207s
+        Time on mds reduced data: 0.0206s
+        Time on RandomProjection reduced data: 0.0207s
+        Time on FastICA reduced data: 0.0209s
+        Time on tSNE reduced data: 0.0052s
+        Time on NMF reduced data: 0.0208s
+        Time on LLE reduced data: 0.0209s
+        Time on FeatureAgglomeration reduced data: 0.0212s
+        Time on Autoencoder reduced data: 0.0205s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: HNSWPQ_Faiss
+        Time on dw_pmad reduced data: 0.0002s
+        Time on pca reduced data: 0.0002s
+        Time on umap reduced data: 0.0002s
+        Time on isomap reduced data: 0.0002s
+        Time on kernel_pca reduced data: 0.0002s
+        Time on mds reduced data: 0.0001s
+        Time on RandomProjection reduced data: 0.0002s
+        Time on FastICA reduced data: 0.0002s
+        Time on tSNE reduced data: 0.0001s
+        Time on NMF reduced data: 0.0002s
+        Time on LLE reduced data: 0.0002s
+        Time on FeatureAgglomeration reduced data: 0.0002s
+        Time on Autoencoder reduced data: 0.0001s
+        Time on VAE reduced data: 0.0000s
+      Accuracy Method: IVFOPQ_Faiss
+        Time on dw_pmad reduced data: 0.0034s
+        Time on pca reduced data: 0.0034s
+        Time on umap reduced data: 0.0034s
+        Time on isomap reduced data: 0.0034s
+        Time on kernel_pca reduced data: 0.0034s
+        Time on mds reduced data: 0.0033s
+        Time on RandomProjection reduced data: 0.0034s
+        Time on FastICA reduced data: 0.0034s
+        Time on tSNE reduced data: 0.0033s
+        Time on NMF reduced data: 0.0034s
+        Time on LLE reduced data: 0.0034s
+        Time on FeatureAgglomeration reduced data: 0.0034s
+        Time on Autoencoder reduced data: 0.0034s
+        Time on VAE reduced data: 0.0000s
+  Memory - After All Accuracy Calcs for this run: 984.36 MB
+  Peak Memory Observed During this run: 994.47 MB

@@ -1,12 +1,14 @@
 import pandas as pd
 import matplotlib.pyplot as plt
-import math # Added for math.ceil if preferred, but integer division works well too
+import math  # for math.ceil
 
-# Increase global font size
-plt.rcParams.update({'font.size': 14})
+# Increase global font size and use colorblind-friendly style
+ggs = {'font.size': 14}
+plt.rcParams.update(ggs)
+plt.style.use('tableau-colorblind10')
 
 #--------------------------------------------------
-# 1. List of CSV files and manual dataset names
+# 1. List of CSV files and dataset names
 #--------------------------------------------------
 csv_paths = [
     "parameter_sweep_results_Fasttext_Multiple_methods_with_additional_baselines.csv",
@@ -14,149 +16,139 @@ csv_paths = [
     "parameter_sweep_results_Arcene_Multiple_methods_with_additional_baselines.csv",
     "parameter_sweep_results_PBMC3k_Multiple_methods_with_additional_baselines.csv"
 ]
-dataset_names = [
-    "Fasttext",
-    "Isolet",
-    "Arcene",
-    "PBMC3k"
+dataset_names = ["Fasttext", "Isolet", "Arcene", "PBMC3k"]
+
+#--------------------------------------------------
+# 2. Display config and predefined colors/names
+#--------------------------------------------------
+display_methods_config = [
+    {'x_label': 'MPAD',    'full_csv_col_name': 'MPAD Accuracy'},
+    {'x_label': 'UMAP',    'full_csv_col_name': 'UMAP Accuracy'},
+    {'x_label': 'Isomap',  'full_csv_col_name': 'Isomap Accuracy'},
+    {'x_label': 'KPCA',    'full_csv_col_name': 'KernelPCA Accuracy'},
+    {'x_label': 'AE',      'full_csv_col_name': 'Autoencoder Accuracy'},
+    {'x_label': 'FeatAgg', 'full_csv_col_name': 'Feature Agglomeration Accuracy'},
+    {'x_label': 'LLE',     'full_csv_col_name': 'LLE Accuracy'},
+    {'x_label': 'NMF',     'full_csv_col_name': 'NMF Accuracy'},
+    {'x_label': 'RandProj','full_csv_col_name': 'Random Projection Accuracy'},
+    {'x_label': 'VAE',     'full_csv_col_name': 'VAE Accuracy'},
+    {'x_label': 'tSNE',    'full_csv_col_name': 't-SNE Accuracy'},
+    {'x_label': 'LSH',     'full_csv_col_name': 'LSH Accuracy'}
 ]
 
+predefined_method_attributes = {
+    'MPAD Accuracy':     {'color': 'red'},
+    'UMAP Accuracy':     {'color': 'green'},
+    'Isomap Accuracy':   {'color': 'orange'},
+    'KernelPCA Accuracy':{'color': 'plum'},
+    'Autoencoder Accuracy': {'color': 'blue'},
+    'Feature Agglomeration Accuracy': {'color': 'blue'},
+    'LLE Accuracy': {'color': 'gray'},
+    'NMF Accuracy': {'color': 'yellowgreen'},
+    'Random Projection Accuracy': {'color': 'brown'},
+    'VAE Accuracy': {'color': 'tan'},
+    't-SNE Accuracy': {'color': 'teal'},
+    'LSH Accuracy': {'color': 'olive'}
+}
+
+# Manual marker and linestyle for each method to ensure uniqueness
+manual_marker_linestyles = {
+    'MPAD Accuracy':          {'marker': 'o',  'linestyle': '-'},
+    'UMAP Accuracy':          {'marker': '^',  'linestyle': '-.'},
+    'Isomap Accuracy':        {'marker': 'D',  'linestyle': ':'},
+    'KernelPCA Accuracy':     {'marker': 'v',  'linestyle': '-'},
+    'Autoencoder Accuracy':   {'marker': 'x',  'linestyle': '--'},
+    'Feature Agglomeration Accuracy': {'marker': 's',  'linestyle': '-.'},
+    'LLE Accuracy':           {'marker': 'p',  'linestyle': ':'},
+    'NMF Accuracy':           {'marker': 'h',  'linestyle': '-'},
+    'Random Projection Accuracy': {'marker': '*',  'linestyle': '--'},
+    'VAE Accuracy':           {'marker': '+',  'linestyle': '-.'},
+    't-SNE Accuracy':         {'marker': 'X',  'linestyle': ':'},
+    'LSH Accuracy':           {'marker': '<',  'linestyle': '--'}
+}
+
+def normalize_col(name: str) -> str:
+    """Remove spaces and hyphens to match keys robustly."""
+    return name.replace(' ', '').replace('-', '')
+
+# Build method_styles by normalizing keys
+method_styles = {}
+default_style = {'color': None, 'marker': 'o', 'linestyle': '-'}
+for conf in display_methods_config:
+    full = conf['full_csv_col_name']
+    key_norm = normalize_col(full)
+    # start with manual marker/linestyle or default
+    style = manual_marker_linestyles.get(full, default_style.copy()).copy()
+    # assign predefined color
+    style['color'] = predefined_method_attributes.get(full, {}).get('color', None)
+    # store short_name
+    style['short_name'] = conf['x_label']
+    method_styles[key_norm] = style
+
 #--------------------------------------------------
-# 2. Define functions for scoring and baseline selection
+# 3. Ablation helper functions (unchanged)
 #--------------------------------------------------
 def ablation_dw_pmad_accuracy(df, baseline, ablated_params=['k', 'Target Ratio', 'b', 'alpha']):
-    total_accuracy = 0.0
-    count = 0
-    for param in ablated_params:
-        # Filter using all parameters except the one being ablated.
-        filters = {p: v for p, v in baseline.items() if p != param}
+    total, cnt = 0.0, 0
+    for p in ablated_params:
+        filters = {q: v for q, v in baseline.items() if q != p}
         sub = df.copy()
-        for p, v in filters.items():
-            sub = sub[sub[p] == v]
-        if len(sub) > 0:
-            total_accuracy += sub["MPAD Accuracy"].mean()
-            count += 1
-    return total_accuracy, count
+        for q, v in filters.items(): sub = sub[sub[q] == v]
+        if len(sub):
+            total += sub['MPAD Accuracy'].mean()
+            cnt += 1
+    return total, cnt
+
 
 def find_best_baseline(df):
-    unique_k = [k for k in df['k'].unique() if k != 1]
-    unique_tr = df['Target Ratio'].unique()
-    unique_b = df['b'].unique()
-    unique_alpha = df['alpha'].unique()
-    best_baseline = None
-    best_score = -1.0
-    for k_ in unique_k:
-        for tr_ in unique_tr:
-            for b_ in unique_b:
-                for alpha_ in unique_alpha:
-                    candidate = {
-                        'k': k_,
-                        'Target Ratio': tr_,
-                        'b': b_,
-                        'alpha': alpha_
-                    }
-                    total_accuracy, cnt = ablation_dw_pmad_accuracy(df, candidate,
-                                                                    ablated_params=['k', 'Target Ratio', 'b', 'alpha'])
-                    if cnt == 0:
-                        continue
-                    candidate_accuracy = total_accuracy / cnt
-                    if candidate_accuracy < 0.5:
-                        continue
-                    if candidate_accuracy > best_score:
-                        best_score = candidate_accuracy
-                        best_baseline = candidate.copy()
-    return best_baseline, best_score
+    def uniq(col): return [x for x in df[col].unique() if not (col=='k' and x==1)]
+    best, best_score = None, -1
+    for k in uniq('k'):
+        for tr in uniq('Target Ratio'):
+            for b in uniq('b'):
+                for a in uniq('alpha'):
+                    cand = {'k':k,'Target Ratio':tr,'b':b,'alpha':a}
+                    tot,cnt = ablation_dw_pmad_accuracy(df, cand)
+                    if cnt and (score:=tot/cnt)>=0.5 and score>best_score:
+                        best_score,best = score,cand.copy()
+    return best, best_score
 
-# Helper to filter DataFrame for a given parameter ablation.
+
 def get_subset_for_parameter(df, param, baseline):
-    filters = {p: v for p, v in baseline.items() if p != param}
+    filters = {q: v for q, v in baseline.items() if q != param}
     sub = df.copy()
-    for p, v in filters.items():
-        sub = sub[sub[p] == v]
+    for q, v in filters.items(): sub = sub[sub[q] == v]
     return sub
 
 #--------------------------------------------------
-# 3. Define styling for each method (including the new baseline methods)
+# 4. Plotting setup and execution
 #--------------------------------------------------
-# Existing method styles; add new baseline style if desired.
-method_styles = {
-    'MPAD Accuracy':          {'color': 'red',    'marker': 'o', 'linestyle': '-'},
-    'UMAP Accuracy':          {'color': 'green',  'marker': '^', 'linestyle': '-.'},
-    'Isomap Accuracy':        {'color': 'orange', 'marker': 'D', 'linestyle': ':'},
-    'KernelPCA Accuracy':     {'color': 'purple', 'marker': 'v', 'linestyle': '-'},
-    'MDS Accuracy':           {'color': 'gray',   'marker': 'X', 'linestyle': '--'},
-    'RandomProjection Accuracy': {'color': 'blue', 'marker': 's', 'linestyle': ':'}
-}
-default_style = {'color': None, 'marker': 'o', 'linestyle': '-'}
-
-#--------------------------------------------------
-# 4. Set up the overall figure:
-#    4 rows and 4 columns (each dataset occupies 4 contiguous subplots).
-#--------------------------------------------------
-plt.style.use('tableau-colorblind10')
 n_datasets = len(csv_paths)
-datasets_per_row = 1  # one dataset per row
 params_to_ablate = ['k', 'Target Ratio', 'b', 'alpha']
-n_rows = 4
-n_cols = datasets_per_row * len(params_to_ablate)  # 4 columns
-
-fig_width = 24
-fig_height = 16
-fig, axes = plt.subplots(n_rows, n_cols, figsize=(fig_width, fig_height))
-
-# For a global legend.
+fig, axes = plt.subplots(n_datasets, len(params_to_ablate), figsize=(24, 16))
 all_handles = {}
 
-#--------------------------------------------------
-# 5. Process each dataset and create its ablation subplots
-#--------------------------------------------------
-for idx, csv_path in enumerate(csv_paths):
-    # Determine the grid position for this dataset.
-    grid_row = idx // datasets_per_row
-    col_offset = (idx % datasets_per_row) * len(params_to_ablate)
-
-    # Load dataset and ignore rows with b = 40 or 50.
-    # Create dummy CSV files for testing if they don't exist
-    try:
-        df = pd.read_csv(csv_path)
-    except FileNotFoundError:
-        print(f"Warning: File {csv_path} not found. Creating a dummy DataFrame for testing.")
-
-
+for idx, path in enumerate(csv_paths):
+    df = pd.read_csv(path)
     df = df[~df['b'].isin([40, 50])]
+    # Normalize column keys for lookup
+    acc_cols = [c for c in df.columns if c.endswith('Accuracy') and c not in ['PCA Accuracy','FastICA Accuracy','MDS Accuracy']]
+    best_base, best_score = find_best_baseline(df)
+    print(f"{dataset_names[idx]} – baseline {best_base}, score {best_score:.2%}")
 
-    # Dynamically determine accuracy columns: select all columns ending with "Accuracy", excluding "PCA Accuracy" and "FastICA Accuracy".
-    accuracy_cols = [col for col in df.columns if col.endswith("Accuracy") and col != "PCA Accuracy" and col != "FastICA Accuracy"]
-
-    # Determine the best baseline for this dataset.
-    best_baseline, best_score = find_best_baseline(df)
-    if best_baseline is None:
-        print(f"No baseline candidate found for {csv_path}. Skipping dataset.")
-        continue
-    print(f"{dataset_names[idx]} -- Chosen baseline: {best_baseline} (MPAD Accuracy = {best_score:.2%})")
-
-    # Loop over each ablated parameter (one subplot per parameter).
-    for i, param in enumerate(params_to_ablate):
-        ax = axes[grid_row, col_offset + i]
-        subset = get_subset_for_parameter(df, param, best_baseline)
-        grouped = subset.groupby(param)
-        summary = grouped[accuracy_cols].mean().reset_index()
-
-        # Plot each accuracy column using the data values for x.
-        for acc_col in accuracy_cols:
-            style = method_styles.get(acc_col, default_style)
+    for j, param in enumerate(params_to_ablate):
+        ax = axes[idx, j]
+        summary = get_subset_for_parameter(df, param, best_base).groupby(param)[acc_cols].mean().reset_index()
+        for col in acc_cols:
+            key_norm = normalize_col(col)
+            style = method_styles.get(key_norm, default_style)
+            label = style.get('short_name', col.replace(' Accuracy',''))
             line, = ax.plot(
-                summary[param],
-                summary[acc_col],
-                marker=style.get('marker', 'o'),
-                linestyle=style.get('linestyle', '-'),
-                color=style.get('color', None),
-                label=acc_col
+                summary[param], summary[col],
+                marker=style['marker'], linestyle=style['linestyle'], color=style['color'], label=label
             )
-            if acc_col not in all_handles:
-                all_handles[acc_col] = line
+            all_handles[label] = line
 
-        # Use logarithmic scale for alpha if needed.
         if param == 'alpha':
             ax.set_xscale('log')
             plt.setp(ax.get_xticklabels(), rotation=45, ha='right', fontsize=12)
@@ -164,36 +156,32 @@ for idx, csv_path in enumerate(csv_paths):
             plt.setp(ax.get_xticklabels(), rotation=0, fontsize=12)
 
         ax.set_xlabel(param, fontsize=16)
-        ax.set_ylabel("Accuracy", fontsize=16)
+        ax.set_ylabel('Accuracy', fontsize=16)
         ax.set_xticks(summary[param])
-        # Ensure x-tick labels are formatted nicely, especially for floats
-        if summary[param].dtype == float:
-            ax.set_xticklabels([f'{x:.2f}' if isinstance(x, float) else x for x in summary[param]], fontsize=12)
-        else:
-            ax.set_xticklabels(summary[param], fontsize=12)
+        ax.set_xticklabels([f'{x:.2f}' if isinstance(x, float) else x for x in summary[param]], fontsize=12)
 
-
-        # Add dataset name and baseline info only on the first subplot for this dataset.
-        if i == 0:
-            title_text = (f"{dataset_names[idx]}  Baseline:  "
-                          f"k = {best_baseline['k']}, TR = {best_baseline['Target Ratio']:.1f}, " # Formatting TR
-                          f"b = {best_baseline['b']}, alpha = {best_baseline['alpha']:.0f}  ") # Formatting alpha
-            ax.set_title(title_text, loc='left', fontsize=16)
+        if j == 0:
+            ax.set_title(
+                f"{dataset_names[idx]} | baseline k={best_base['k']}, TR={best_base['Target Ratio']:.1f}, "
+                f"b={best_base['b']}, α={best_base['alpha']:.0f}",
+                loc='left', fontsize=16
+            )
 
 #--------------------------------------------------
-# 6. Create one global legend and adjust layout to reduce empty spaces
+# 5. Global legend & layout adjustments
 #--------------------------------------------------
-# Calculate the number of columns for a two-row legend
-num_legend_items = len(all_handles)
-# Ensure at least 1 column, and aim for 2 rows by dividing by 2 and taking ceiling
-ncol_legend = math.ceil(num_legend_items / 2.0) if num_legend_items > 0 else 1
-
-
-fig.legend(all_handles.values(), all_handles.keys(), loc='upper center', ncol=int(ncol_legend), fontsize=16)
-plt.subplots_adjust(top=0.92, # Adjusted to make space for two-row legend
-                    bottom=0.048,
-                    left=0.03,
-                    right=0.998,
-                    hspace=0.39,
-                    wspace=0.16)
+num_items = len(all_handles)
+ncol = math.ceil(num_items / 2) if num_items else 1
+fig.legend(
+    all_handles.values(), all_handles.keys(),
+    loc='upper center', ncol=ncol, fontsize=16
+)
+plt.subplots_adjust(
+    top=0.92,
+    bottom=0.05,
+    left=0.03,
+    right=0.998,
+    hspace=0.39,
+    wspace=0.16
+)
 plt.show()
