@@ -16,7 +16,7 @@ np.random.seed(fixed_seed)
 vec_file_path = r'D:\My notes\UW\HPDIC Lab\OPDR\datasets\wiki-news-300d-1M.vec'
 
 # Define the number of vectors you want for training and testing
-num_training_vectors = 1200  # You can change this value as needed
+num_training_vectors = 300  # You can change this value as needed
 num_testing_vectors = 300   # You can change this value as needed
 
 # Ensure the file exists
@@ -100,7 +100,7 @@ testing_indices = shuffled_indices[num_training_vectors : num_training_vectors +
 training_set_vectors = all_vectors[training_indices]
 
 # Save the training vectors to a .npy file
-training_npy_file_path = 'training_vectors_1200_Fasttext.npy' # Changed filename
+training_npy_file_path = 'training_vectors_300_Fasttext.npy' # Changed filename
 np.save(training_npy_file_path, training_set_vectors)
 print(f"\nSaved {training_set_vectors.shape[0]} training vectors with dimension {training_set_vectors.shape[1]} to '{training_npy_file_path}'.")
 
@@ -109,7 +109,7 @@ testing_set_vectors = all_vectors[testing_indices]
 
 # Save the testing vectors to a .npy file
 testing_npy_file_path = 'testing_vectors_300_Fasttext.npy' # Kept original name for testing as per draft, but you might want to make it consistent
-np.save(testing_npy_file_path, testing_set_vectors)
+# np.save(testing_npy_file_path, testing_set_vectors)
 print(f"Saved {testing_set_vectors.shape[0]} testing vectors with dimension {testing_set_vectors.shape[1]} to '{testing_npy_file_path}'.")
 
 # --- Verification of no overlap (optional) ---

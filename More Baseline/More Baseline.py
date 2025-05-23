@@ -169,7 +169,7 @@ datasets = {
 # but for Fasttext use 298.
 default_dim = 200
 
-target_ratios = [0.05, 0.6]
+target_ratios = [0.05,0.1,0.2,0.4, 0.6]
 # Target dimensions will be computed based on the dim used for that dataset.
 k_values = [1, 3, 6, 10, 15]
 

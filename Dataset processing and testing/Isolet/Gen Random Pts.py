@@ -14,7 +14,7 @@ np.random.seed(fixed_seed)
 vec_file_path = 'isolet dataset/isolet1+2+3+4.data' # Ensure this path is correct
 
 # Define the number of points you want for training and testing
-num_training_points = 1200  # You can change this value as needed
+num_training_points = 300  # You can change this value as needed
 num_testing_points = 300   # You can change this value as needed
 
 # Ensure the file exists
@@ -103,7 +103,7 @@ testing_indices = shuffled_indices[num_training_points : num_training_points + n
 training_vectors = all_vectors[training_indices]
 
 # Save the training vectors to a .npy file
-training_npy_file_path = 'training_vectors_1200_Isolet.npy'
+training_npy_file_path = 'training_vectors_300_Isolet.npy'
 np.save(training_npy_file_path, training_vectors)
 print(f"\nSaved {training_vectors.shape[0]} training vectors with dimension {training_vectors.shape[1]} to '{training_npy_file_path}'.")
 
@@ -112,7 +112,7 @@ testing_vectors = all_vectors[testing_indices]
 
 # Save the testing vectors to a .npy file
 testing_npy_file_path = 'testing_vectors_300_Isolet.npy'
-np.save(testing_npy_file_path, testing_vectors)
+# np.save(testing_npy_file_path, testing_vectors)
 print(f"Saved {testing_vectors.shape[0]} testing vectors with dimension {testing_vectors.shape[1]} to '{testing_npy_file_path}'.")
 
 # --- Verification of no overlap (optional) ---

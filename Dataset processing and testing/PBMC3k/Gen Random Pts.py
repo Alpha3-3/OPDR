@@ -21,7 +21,7 @@ random_seed = 1 # Changed seed for a combined operation
 np.random.seed(random_seed)
 
 # Define the number of vectors you want for training and testing
-num_training_vectors = 1200  # You can change this value as needed
+num_training_vectors = 300  # You can change this value as needed
 num_testing_vectors = 300   # You can change this value as needed
 
 # Check if the requested number of vectors exceeds the available data
@@ -43,7 +43,7 @@ testing_indices = shuffled_indices[num_training_vectors : num_training_vectors +
 training_vectors = X_valid[training_indices]
 
 # Save the training vectors to a .npy file
-np.save("training_vectors_1200_PBMC3k.npy", training_vectors)
+np.save("training_vectors_300_PBMC3k.npy", training_vectors)
 print(f"\nSaved {training_vectors.shape[0]} training vectors with dimension {training_vectors.shape[1]} to 'training_vectors_1200_PBMC3k.npy'.")
 # print("Sample of training vectors:")
 # print(training_vectors[:5]) # Print first 5 for brevity
@@ -52,7 +52,7 @@ print(f"\nSaved {training_vectors.shape[0]} training vectors with dimension {tra
 testing_vectors = X_valid[testing_indices]
 
 # Save the testing vectors to a .npy file
-np.save("testing_vectors_300_PBMC3k.npy", testing_vectors)
+# np.save("testing_vectors_300_PBMC3k.npy", testing_vectors)
 print(f"Saved {testing_vectors.shape[0]} testing vectors with dimension {testing_vectors.shape[1]} to 'testing_vectors_300_PBMC3k.npy'.")
 # print("Sample of testing vectors:")
 # print(testing_vectors[:5]) # Print first 5 for brevity

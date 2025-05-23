@@ -1,9 +1,9 @@
 import pandas as pd
 
 # File names (adjust paths if necessary)
-main_csv = 'parameter_sweep_results_PBMC3k_Multiple_methods.csv'
-add_csv = '../More Baseline/additional_baselines_PBMC3k.csv'
-output_csv = 'parameter_sweep_results_PBMC3k_Multiple_methods_with_additional_baselines.csv'
+main_csv = 'parameter_sweep_results_Arcene_Multiple_methods_with_additional_baselines.csv'
+add_csv = '../More Baseline/lsh_baseline_results_Arcene.csv'
+output_csv = 'parameter_sweep_results_Arcene_Multiple_methods_with_additional_baselines.csv'
 
 # Read the main parameter sweep CSV file
 df_main = pd.read_csv(main_csv)
