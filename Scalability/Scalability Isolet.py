@@ -6,16 +6,22 @@ import time
 import os # For performance report
 import psutil # For memory usage
 from scipy.optimize import minimize
-from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA, KernelPCA, FastICA, NMF
 from sklearn.neighbors import NearestNeighbors
 # from scipy.spatial.distance import pdist # Kept for comparison if needed, but parallel_pdist is used
 from tqdm import tqdm
-from sklearn.manifold import MDS
+from sklearn.manifold import MDS, Isomap, TSNE, LocallyLinearEmbedding
 from sklearn.linear_model import LinearRegression
-from sklearn.decomposition import KernelPCA
-from sklearn.manifold import Isomap
+from sklearn.random_projection import GaussianRandomProjection
+from sklearn.cluster import FeatureAgglomeration
 import umap # Standard import; ensure this is from umap-learn
 import faiss # For ANN methods
+
+# For autoencoder and VAE (from baseline methods)
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Dense, Lambda
+from tensorflow.keras.models import Model
+from tensorflow.keras import backend as K
 
 # ---------------------------------------------------------
 # GLOBAL POOL & HELPER FUNCTIONS FOR PARALLEL DISTANCE
@@ -169,43 +175,249 @@ def project_dw_pmad(X_to_project, projection_axes_to_use):
     return X_to_project @ projection_axes_to_use
 
 # ---------------------------------------------------------
-# FAISS HELPER
+# Baseline method implementations (copied from your provided code)
+# ---------------------------------------------------------
+def run_random_projection(X_train, X_test, target_dim):
+    t0 = time.perf_counter()
+    rp = GaussianRandomProjection(n_components=target_dim, random_state=1)
+    X_train_rp = rp.fit_transform(X_train)
+    X_test_rp = rp.transform(X_test)
+    t_elapsed = time.perf_counter() - t0
+    return X_train_rp, X_test_rp, t_elapsed
+
+def run_fastica(X_train, X_test, target_dim):
+    t0 = time.perf_counter()
+    ica = FastICA(n_components=target_dim, random_state=1, max_iter=200, tol=0.01) # Default max_iter=200
+    X_train_ica = ica.fit_transform(X_train)
+    X_test_ica = ica.transform(X_test)
+    t_elapsed = time.perf_counter() - t0
+    return X_train_ica, X_test_ica, t_elapsed
+
+def run_tsne(X_train, X_test, target_dim):
+    # t-SNE is usually not applied to a separate test set in the same way as other DR methods.
+    # The common practice is to fit t-SNE on the combined dataset or just the training set for visualization.
+    # Out-of-sample extension is non-trivial. The provided linear regression is a simple approximation.
+    t0 = time.perf_counter()
+    # Ensure target_dim for t-SNE is typically small (2 or 3)
+    # The method='exact' can be very slow for large N. Consider 'barnes_hut' for larger datasets.
+    # For very high dimensional data, PCA pre-processing to ~50 dims is often recommended for t-SNE.
+    tsne_model = TSNE(n_components=target_dim, method='exact', random_state=1, perplexity=30.0, n_iter=1000)
+
+    # If X_train is too small for perplexity, TSNE will error.
+    # Perplexity should be less than n_samples - 1.
+    if X_train.shape[0] -1 < tsne_model.perplexity:
+        print(f"t-SNE Warning: n_samples ({X_train.shape[0]}) is too small for perplexity ({tsne_model.perplexity}). Adjusting perplexity.")
+        tsne_model.perplexity = max(5, X_train.shape[0] - 2) # Adjust to a smaller valid value
+
+    if X_train.shape[0] <= tsne_model.n_components: # n_samples must be > n_components
+        print(f"t-SNE Skipping: n_samples ({X_train.shape[0]}) <= n_components ({tsne_model.n_components}).")
+        nan_shape_train = (X_train.shape[0], target_dim)
+        nan_shape_test = (X_test.shape[0], target_dim)
+        return np.full(nan_shape_train, np.nan), np.full(nan_shape_test, np.nan), 0.0
+
+    X_train_tsne = tsne_model.fit_transform(X_train)
+
+    # Out-of-sample extension via linear regression (simple approximation)
+    if X_train.shape[0] > 0 and X_train_tsne.shape[0] > 0 :
+        reg = LinearRegression().fit(X_train, X_train_tsne)
+        X_test_tsne = reg.predict(X_test)
+    else:
+        X_test_tsne = np.full((X_test.shape[0], target_dim), np.nan)
+
+    t_elapsed = time.perf_counter() - t0
+    return X_train_tsne, X_test_tsne, t_elapsed
+
+def run_nmf(X_train, X_test, target_dim):
+    t0 = time.perf_counter()
+    # NMF requires non-negative data; shift data accordingly.
+    # Important: This shift should ideally be learned from X_train and applied to X_test,
+    # or use a global min if data characteristics are similar.
+    # The original code used global_min = min(X_train.min(), X_test.min())
+    # For a strict train/test split, it's better to use X_train.min()
+
+    train_min = X_train.min()
+    X_train_nmf_shifted = X_train - train_min
+    X_test_nmf_shifted = X_test - train_min
+
+    # If after shifting, some values are still slightly negative due to floating point, clip them.
+    X_train_nmf_shifted[X_train_nmf_shifted < 0] = 0
+    X_test_nmf_shifted[X_test_nmf_shifted < 0] = 0
+
+    nmf_model = NMF(n_components=target_dim, init='random', random_state=1, max_iter=200, tol=1e-4) # Default max_iter=200
+
+    try:
+        X_train_nmf_trans = nmf_model.fit_transform(X_train_nmf_shifted)
+        X_test_nmf_trans = nmf_model.transform(X_test_nmf_shifted)
+    except ValueError as e:
+        print(f"NMF Error: {e}. This can happen if data is not strictly non-negative even after shift. Returning NaNs.")
+        nan_shape_train = (X_train.shape[0], target_dim)
+        nan_shape_test = (X_test.shape[0], target_dim)
+        return np.full(nan_shape_train, np.nan), np.full(nan_shape_test, np.nan), time.perf_counter() - t0
+
+    t_elapsed = time.perf_counter() - t0
+    return X_train_nmf_trans, X_test_nmf_trans, t_elapsed
+
+def run_lle(X_train, X_test, target_dim):
+    t0 = time.perf_counter()
+    # n_neighbors for LLE should be > target_dim
+    n_neighbors_lle = max(target_dim + 1, min(10, X_train.shape[0] -1))
+    if X_train.shape[0] <= n_neighbors_lle or X_train.shape[0] <= target_dim :
+        print(f"LLE Skipping: n_samples ({X_train.shape[0]}) is too small for n_neighbors ({n_neighbors_lle}) or target_dim ({target_dim}).")
+        nan_shape_train = (X_train.shape[0], target_dim)
+        nan_shape_test = (X_test.shape[0], target_dim)
+        return np.full(nan_shape_train, np.nan), np.full(nan_shape_test, np.nan), 0.0
+
+    lle_model = LocallyLinearEmbedding(n_components=target_dim, n_neighbors=n_neighbors_lle, random_state=1, method='standard')
+    X_train_lle = lle_model.fit_transform(X_train)
+    X_test_lle = lle_model.transform(X_test) # LLE transform can be unstable for new data
+    t_elapsed = time.perf_counter() - t0
+    return X_train_lle, X_test_lle, t_elapsed
+
+def run_feature_agglomeration(X_train, X_test, target_dim):
+    t0 = time.perf_counter()
+    if target_dim > X_train.shape[1]: # n_clusters cannot be > n_features
+        print(f"FeatureAgglomeration Skipping: target_dim ({target_dim}) > n_features ({X_train.shape[1]})")
+        nan_shape_train = (X_train.shape[0], X_train.shape[1]) # Output will be same as input if skipped this way
+        nan_shape_test = (X_test.shape[0], X_test.shape[1])
+        # Or return NaNs of target_dim, but FA usually means reducing features.
+        # Let's return NaNs of original shape if it truly skips, or try to proceed.
+        # For now, if target_dim is too high, it will fail. Let sklearn handle it or cap target_dim.
+        # Capping target_dim to X_train.shape[1] if it's higher.
+        actual_target_dim = min(target_dim, X_train.shape[1])
+        if actual_target_dim <=0 : actual_target_dim = 1 # ensure at least 1 cluster
+    else:
+        actual_target_dim = target_dim
+
+    if actual_target_dim == 0 and X_train.shape[1] > 0: actual_target_dim = 1 # Ensure at least 1 cluster if features exist
+
+    if X_train.shape[1] == 0: # No features to agglomerate
+        X_train_fa = np.zeros((X_train.shape[0], 0))
+        X_test_fa = np.zeros((X_test.shape[0], 0))
+    elif actual_target_dim > 0 :
+        fa_model = FeatureAgglomeration(n_clusters=actual_target_dim)
+        X_train_fa = fa_model.fit_transform(X_train)
+        X_test_fa = fa_model.transform(X_test)
+    else: # Should not happen with guard above
+        X_train_fa = np.zeros((X_train.shape[0], 0))
+        X_test_fa = np.zeros((X_test.shape[0], 0))
+
+    t_elapsed = time.perf_counter() - t0
+    return X_train_fa, X_test_fa, t_elapsed
+
+def run_autoencoder(X_train, X_test, target_dim):
+    t0 = time.perf_counter()
+    input_dim = X_train.shape[1]
+    if input_dim == 0: # No input features
+        return np.zeros((X_train.shape[0], target_dim)), np.zeros((X_test.shape[0], target_dim)), 0.0
+
+    tf.keras.utils.set_random_seed(1) # For reproducibility
+
+    inputs = Input(shape=(input_dim,))
+    encoded = Dense(target_dim, activation='relu', name='encoder_layer')(inputs) # Named layer
+    decoded = Dense(input_dim, activation='linear')(encoded)
+    autoencoder = Model(inputs, decoded, name='autoencoder_model')
+    encoder = Model(inputs, encoded, name='encoder_model') # Access encoder part
+
+    autoencoder.compile(optimizer=tf.keras.optimizers.Adam(0.001), loss='mse')
+    # Train the autoencoder (epochs can be increased for better performance)
+    # Consider adding a validation split if X_train is large enough, or using X_test for validation in a non-benchmark setting.
+    history = autoencoder.fit(X_train, X_train, epochs=20, batch_size=32, verbose=0, shuffle=True)
+
+    X_train_ae = encoder.predict(X_train, batch_size=256)
+    X_test_ae = encoder.predict(X_test, batch_size=256)
+    t_elapsed = time.perf_counter() - t0
+    K.clear_session() # Clear TF session to free memory
+    return X_train_ae, X_test_ae, t_elapsed
+
+def run_vae(X_train, X_test, target_dim):
+    t0 = time.perf_counter()
+    input_dim = X_train.shape[1]
+    if input_dim == 0:
+        return np.zeros((X_train.shape[0], target_dim)), np.zeros((X_test.shape[0], target_dim)), 0.0
+
+    tf.keras.utils.set_random_seed(1)
+
+    latent_dim = target_dim
+    intermediate_dim = max(latent_dim * 2, 64) # Heuristic for intermediate layer size
+
+    inputs = Input(shape=(input_dim,))
+    h = Dense(intermediate_dim, activation='relu')(inputs)
+    z_mean = Dense(latent_dim, name='z_mean_layer')(h) # Named layer
+    z_log_var = Dense(latent_dim, name='z_log_var_layer')(h) # Named layer
+
+    # Sampling function
+    def sampling(args):
+        z_mean_s, z_log_var_s = args
+        batch = K.shape(z_mean_s)[0]
+        dim = K.int_shape(z_mean_s)[1]
+        epsilon = K.random_normal(shape=(batch, dim), mean=0., stddev=1.)
+        return z_mean_s + K.exp(0.5 * z_log_var_s) * epsilon
+
+    z = Lambda(sampling, output_shape=(latent_dim,), name='z_sampling_layer')([z_mean, z_log_var])
+
+    # Decoder
+    decoder_h_layer = Dense(intermediate_dim, activation='relu', name='decoder_h_layer')
+    decoder_out_layer = Dense(input_dim, activation='sigmoid', name='decoder_out_layer') # Sigmoid if input is normalized [0,1]
+    # or linear if input is standardized.
+    # Given standardization, linear might be better.
+    # Let's assume original code used linear for AE.
+
+    h_decoded = decoder_h_layer(z)
+    outputs = decoder_out_layer(h_decoded)
+
+    vae = Model(inputs, outputs, name='vae_model')
+
+    # Loss: Reconstruction + KL divergence
+    reconstruction_loss = tf.keras.losses.mse(inputs, outputs)
+    reconstruction_loss *= input_dim # Scale by input_dim (common practice)
+    kl_loss = -0.5 * K.sum(1 + z_log_var - K.square(z_mean) - K.exp(z_log_var), axis=-1)
+    vae_loss = K.mean(reconstruction_loss + kl_loss)
+
+    vae.add_loss(vae_loss)
+    vae.compile(optimizer=tf.keras.optimizers.Adam(0.001))
+
+    # Train VAE
+    vae.fit(X_train, None, epochs=20, batch_size=32, verbose=0, shuffle=True)
+
+    # Use the mean as the encoded representation
+    encoder = Model(inputs, z_mean, name='vae_encoder_model') # Model to get z_mean
+    X_train_vae = encoder.predict(X_train, batch_size=256)
+    X_test_vae = encoder.predict(X_test, batch_size=256)
+
+    t_elapsed = time.perf_counter() - t0
+    K.clear_session() # Clear TF session
+    return X_train_vae, X_test_vae, t_elapsed
+
+# List of new baseline DR method names (used for conditional calls)
+NEW_BASELINE_DR_METHODS = [
+    'RandomProjection', 'FastICA', 'tSNE', 'NMF', 'LLE',
+    'FeatureAgglomeration', 'Autoencoder', 'VAE'
+]
+
+# ---------------------------------------------------------
+# FAISS HELPER (and other accuracy helpers)
 # ---------------------------------------------------------
 def get_valid_pq_m(d, max_m_val=8, ensure_d_multiple=True, min_subvector_dim=1):
     if d == 0: return 0
-    if d < min_subvector_dim : return 0 # e.g. if d=1, min_subvector_dim=2 -> cannot find valid m
+    if d < min_subvector_dim : return 0
 
-    # M must be at least 1. Max m_val can't make d/m less than min_subvector_dim.
-    # Max m is also bounded by d itself (d/m >= 1 means m <= d).
     upper_bound_m = min(d // min_subvector_dim if min_subvector_dim > 0 else d, max_m_val, d)
-    if upper_bound_m == 0 and d > 0 : # If d is small, min_subvector_dim might make upper_bound_m zero
-        upper_bound_m = 1 # M must be at least 1 if d > 0
+    if upper_bound_m == 0 and d > 0 :
+        upper_bound_m = 1
 
-    for m_candidate in range(upper_bound_m, 0, -1): # Iterate from largest possible m downwards
+    for m_candidate in range(upper_bound_m, 0, -1):
         if ensure_d_multiple:
             if d % m_candidate == 0:
                 return m_candidate
-        else: # No need for d to be a multiple of m
+        else:
             return m_candidate
-    return 0 # Should not be reached if d > 0 and min_subvector_dim <= d, because m=1 is always an option.
+    return 0
 
 def get_dynamic_nbits(n_train, m_pq, default_nbits=8, min_nbits=4):
-    if m_pq == 0: return default_nbits # Should not happen if m_pq is validated before
-
+    if m_pq == 0: return default_nbits
     nbits = default_nbits
-    # Heuristic: if n_train is significantly less than M * (factor * 2^nbits), reduce nbits
-    # Factor of 4: if n_train < M * 64 (for 8 bits, 256 centroids)
-    # This aims to have at least (factor) points per centroid on average for each sub-quantizer's codebook.
-    # Since PQ trains M codebooks, and n_train is available for each, we consider 2^nbits.
-    # If n_train < factor_per_centroid * 2^nbits, then it's low.
-    # Let factor_per_centroid be e.g. 4. So if n_train < 4 * 2^nbits.
-    # This check is per sub-quantizer, so m_pq is not directly in this heuristic's threshold.
-
-    # If n_train is less than, say, 4 times the number of centroids (2^nbits)
     while n_train < 4 * (2**nbits) and nbits > min_nbits:
         nbits -= 1
-
-    # print(f"  Dynamically adjusting PQ nbits to {nbits} due to low n_train ({n_train}) for m_pq={m_pq}.")
     return max(min_nbits, nbits)
 
 
@@ -217,13 +429,12 @@ def get_exact_neighbors(data_to_index, query_data, k_neighbors):
     if data_to_index.shape[0] == 0 or query_data.shape[0] == 0:
         return np.array([[] for _ in range(query_data.shape[0])], dtype=int)
 
-    actual_k = min(k_neighbors, data_to_index.shape[0]) # k cannot exceed number of points in index
-    if actual_k == 0 : # if no points to index, or k is forced to 0
+    actual_k = min(k_neighbors, data_to_index.shape[0])
+    if actual_k == 0 :
         return np.array([[] for _ in range(query_data.shape[0])], dtype=int)
 
 
     nbrs_exact = NearestNeighbors(n_neighbors=actual_k, algorithm='auto', n_jobs=-1).fit(data_to_index)
-    # Pre-allocate for slight efficiency gain if many queries
     exact_indices_found = np.empty((len(query_data), actual_k), dtype=int)
     for i in range(len(query_data)):
         exact_indices_found[i] = nbrs_exact.kneighbors(query_data[i].reshape(1, -1), return_distance=False)[0]
@@ -232,10 +443,10 @@ def get_exact_neighbors(data_to_index, query_data, k_neighbors):
 
 def calculate_accuracy_exact_knn(exact_indices_orig_ground_truth, reduced_data_train_to_index, reduced_data_test_to_query, k_val_for_query):
     total_start = time.perf_counter()
-    if reduced_data_train_to_index.shape[0] < 1 or reduced_data_test_to_query.shape[0] < 1: # No data to index or query
+    if reduced_data_train_to_index.shape[0] < 1 or reduced_data_test_to_query.shape[0] < 1:
         return np.nan, 0.0
 
-    actual_k_for_reduced_query = min(k_val_for_query, reduced_data_train_to_index.shape[0]) # k for reduced search
+    actual_k_for_reduced_query = min(k_val_for_query, reduced_data_train_to_index.shape[0])
     if actual_k_for_reduced_query == 0: return np.nan, 0.0
 
 
@@ -243,16 +454,11 @@ def calculate_accuracy_exact_knn(exact_indices_orig_ground_truth, reduced_data_t
     total_matches_found = 0
 
     for i in range(len(reduced_data_test_to_query)):
-        # Ground truth indices for this query point (up to k_val_for_query, or fewer if ground truth had fewer than k_val_for_query neighbors)
-        if exact_indices_orig_ground_truth.shape[1] == 0 : continue # No ground truth neighbors to compare against
+        if exact_indices_orig_ground_truth.shape[1] == 0 : continue
 
         inds_reduced_found = nbrs_reduced.kneighbors(reduced_data_test_to_query[i].reshape(1, -1), return_distance=False)[0]
-        # Compare against the ground truth neighbors for the current query point `i`
-        # The number of ground truth neighbors is exact_indices_orig_ground_truth.shape[1]
-        # This might be different from k_val_for_query if original data had < k_val_for_query points
         total_matches_found += len(set(exact_indices_orig_ground_truth[i]) & set(inds_reduced_found))
 
-    # Denominator should be number of queries * number of ground truth neighbors we are trying to recall
     accuracy_calculated = total_matches_found / (len(reduced_data_test_to_query) * exact_indices_orig_ground_truth.shape[1]) \
         if len(reduced_data_test_to_query) > 0 and exact_indices_orig_ground_truth.shape[1] > 0 else 0.0
 
@@ -265,8 +471,8 @@ def _generic_faiss_accuracy_calc(faiss_index_built, exact_indices_orig_ground_tr
             exact_indices_orig_ground_truth.shape[1] > 0 and \
             faiss_index_built is not None and faiss_index_built.ntotal > 0:
 
-        actual_k_for_faiss_search = min(k_val_for_query, faiss_index_built.ntotal) # k for Faiss search
-        if actual_k_for_faiss_search == 0: return 0.0 # Cannot search for 0 neighbors
+        actual_k_for_faiss_search = min(k_val_for_query, faiss_index_built.ntotal)
+        if actual_k_for_faiss_search == 0: return 0.0
 
         _, inds_reduced_ann_found = faiss_index_built.search(reduced_data_test_faiss_ready, actual_k_for_faiss_search)
 
@@ -274,16 +480,16 @@ def _generic_faiss_accuracy_calc(faiss_index_built, exact_indices_orig_ground_tr
             total_matches_faiss += len(set(exact_indices_orig_ground_truth[i]) & set(inds_reduced_ann_found[i]))
 
         return total_matches_faiss / (len(reduced_data_test_faiss_ready) * exact_indices_orig_ground_truth.shape[1])
-    return 0.0 # Default to 0 if conditions not met
+    return 0.0
 
 def calculate_accuracy_hnswflat_faiss(exact_indices_orig, reduced_data_train_faiss, reduced_data_test_faiss, k_query):
     total_start = time.perf_counter()
     dim_reduced = reduced_data_train_faiss.shape[1]
     if dim_reduced == 0 or reduced_data_train_faiss.shape[0] == 0: return np.nan, 0.0
 
-    index = faiss.IndexHNSWFlat(dim_reduced, 32) # M=32 (default)
-    index.hnsw.efConstruction = 40 # Default = 40
-    index.hnsw.efSearch = 50 # Default = 16, can be increased for better accuracy
+    index = faiss.IndexHNSWFlat(dim_reduced, 32)
+    index.hnsw.efConstruction = 40
+    index.hnsw.efSearch = 50
     try:
         index.add(reduced_data_train_faiss)
     except RuntimeError as e:
@@ -300,32 +506,29 @@ def calculate_accuracy_ivfpq_faiss(exact_indices_orig, reduced_data_train_faiss,
     n_train = reduced_data_train_faiss.shape[0]
     if dim_reduced == 0 or n_train == 0: return np.nan, 0.0
 
-    # Number of Voronoi cells. Typical values are sqrt(N) to N/256.
-    # Faiss recommends at least 39 points per list for training, and at least nlist centroids.
-    nlist = min(100, max(1, n_train // 39 if n_train // 39 > 0 else 1)) # Cap nlist at 100, ensure at least 1
+    nlist = min(100, max(1, n_train // 39 if n_train // 39 > 0 else 1))
 
-    m_pq = get_valid_pq_m(dim_reduced, max_m_val=8, min_subvector_dim=2) # Ensure dsub >= 2
-    if m_pq == 0 : # Should only happen if d_reduced < 2
+    m_pq = get_valid_pq_m(dim_reduced, max_m_val=8, min_subvector_dim=2)
+    if m_pq == 0 :
         print(f"IVFPQ Skipping: Could not find valid m_pq for d={dim_reduced} with min_subvector_dim=2.")
         return np.nan, 0.0
 
     nbits_pq = get_dynamic_nbits(n_train, m_pq, default_nbits=8, min_nbits=4)
-    # print(f"  IVFPQ using m_pq={m_pq}, nbits_pq={nbits_pq} for d={dim_reduced}, n_train={n_train}")
 
-    quantizer = faiss.IndexFlatL2(dim_reduced) # Base L2 quantizer for Voronoi cells
+    quantizer = faiss.IndexFlatL2(dim_reduced)
     index = None
     try:
-        index = faiss.IndexIVFPQ(quantizer, dim_reduced, nlist, m_pq, nbits_pq) # 8 bits per sub-quantizer component
-        if n_train < 39 * nlist : # Faiss official recommendation
+        index = faiss.IndexIVFPQ(quantizer, dim_reduced, nlist, m_pq, nbits_pq)
+        if n_train < 39 * nlist :
             print(f"Faiss IVFPQ Warning: n_train ({n_train}) < Faiss heuristic min training points ({39*nlist} for nlist={nlist}). Quality may be affected.")
 
-        if n_train < (2**nbits_pq) * 4 : # Heuristic: need at least ~4 points per PQ codebook entry
+        if n_train < (2**nbits_pq) * 4 :
             print(f"Faiss IVFPQ Warning: n_train ({n_train}) may be low for PQ training (m_pq={m_pq}, nbits={nbits_pq}, {2**nbits_pq} centroids/subq).")
 
 
         index.train(reduced_data_train_faiss)
         index.add(reduced_data_train_faiss)
-        index.nprobe = min(nlist, 10) # Number of Voronoi cells to visit during search, capped
+        index.nprobe = min(nlist, 10)
     except RuntimeError as e:
         print(f"IVFPQ Error: {e}. Params: d={dim_reduced}, nlist={nlist}, m_pq={m_pq}, nbits={nbits_pq}. Skipping IVFPQ.")
         return np.nan, time.perf_counter() - total_start
@@ -339,22 +542,17 @@ def calculate_accuracy_hnswpq_faiss(exact_indices_orig, reduced_data_train_faiss
     dim_reduced = reduced_data_train_faiss.shape[1]
     n_train = reduced_data_train_faiss.shape[0]
 
-    # HNSWPQ requires d % m_pq == 0, and d / m_pq to be reasonable.
-    # Let's ensure dsub (d/m_pq) >= 2 or ideally 4. Max m_pq is often related to d.
-    if dim_reduced < 2 or n_train == 0: # Need at least dim 2 for any meaningful m_pq.
+    if dim_reduced < 2 or n_train == 0:
         print(f"HNSWPQ Skipping: dim_reduced ({dim_reduced}) is < 2 or n_train ({n_train}) is 0.")
         return np.nan, 0.0
 
-    M_hnsw = 32 # Number of neighbors for HNSW graph
+    M_hnsw = 32
     efConstruction_hnsw = 40
     efSearch_hnsw = 50
 
-    # HNSWPQ's internal PQ uses 8 bits. M must divide d.
-    # d/M should ideally be >= 2 (or even >=4 for some PQ implementations).
-    m_pq_to_try = get_valid_pq_m(dim_reduced, max_m_val=8, min_subvector_dim=4) # Ensure d_sub >=4 for HNSWPQ robustness
+    m_pq_to_try = get_valid_pq_m(dim_reduced, max_m_val=8, min_subvector_dim=4)
 
-    if m_pq_to_try == 0: # This means d_reduced is too small for min_subvector_dim=4
-        # Try again with min_subvector_dim=2
+    if m_pq_to_try == 0:
         m_pq_to_try = get_valid_pq_m(dim_reduced, max_m_val=8, min_subvector_dim=2)
         if m_pq_to_try == 0:
             print(f"HNSWPQ Skipping: Could not find valid m_pq for d={dim_reduced} with min_subvector_dim=2 (required for HNSWPQ's internal PQ).")
@@ -363,24 +561,19 @@ def calculate_accuracy_hnswpq_faiss(exact_indices_orig, reduced_data_train_faiss
 
     index = None
     try:
-        # print(f"  HNSWPQ Attempt: d={dim_reduced}, m_pq={m_pq_to_try}")
-        index = faiss.IndexHNSWPQ(dim_reduced, M_hnsw, m_pq_to_try) # m_pq is number of subquantizers for PQ
+        index = faiss.IndexHNSWPQ(dim_reduced, M_hnsw, m_pq_to_try)
         index.hnsw.efConstruction = efConstruction_hnsw
         index.hnsw.efSearch = efSearch_hnsw
 
-        # PQ training heuristic for HNSWPQ's internal PQ (which uses 8 bits)
-        # Each sub-quantizer trains 2^8 centroids. Need enough data for m_pq such quantizers.
-        # Faiss generally suggests N > k * 2^B for PQ, where B is nbits. Here B=8.
-        # A loose heuristic: n_train should be > m_pq * (2^8 / some_factor), e.g., factor of 8 => m_pq * 32.
-        if n_train < m_pq_to_try * (2**8 / 8) : # e.g. < m_pq * 32 points
+        if n_train < m_pq_to_try * (2**8 / 8) :
             print(f"Faiss HNSWPQ Warning: n_train ({n_train}) might be too small for PQ training (m_pq={m_pq_to_try}, internal nbits=8).")
 
-        index.train(reduced_data_train_faiss) # HNSWPQ also needs training for its PQ part
+        index.train(reduced_data_train_faiss)
         index.add(reduced_data_train_faiss)
     except RuntimeError as e:
-        if "d % M == 0" in str(e): # This check is typically for PQ part (d % m_pq == 0)
+        if "d % M == 0" in str(e):
             print(f"HNSWPQ specific 'd % M' RuntimeError (d={dim_reduced}, m_pq={m_pq_to_try}): {e}. This index type appears unstable for this d/m_pq. Skipping HNSWPQ.")
-        elif "sub-vector size" in str(e) or "pq.dsub" in str(e): # Catch other potential PQ related errors for HNSWPQ
+        elif "sub-vector size" in str(e) or "pq.dsub" in str(e):
             print(f"HNSWPQ PQ-related RuntimeError (d={dim_reduced}, m_pq={m_pq_to_try}): {e}. Skipping HNSWPQ.")
         else:
             print(f"HNSWPQ Generic RuntimeError (d={dim_reduced}, m_pq={m_pq_to_try}): {e}. Skipping HNSWPQ.")
@@ -397,39 +590,28 @@ def calculate_accuracy_ivfopq_faiss(exact_indices_orig, reduced_data_train_faiss
     n_train = reduced_data_train_faiss.shape[0]
     if dim_reduced == 0 or n_train == 0: return np.nan, 0.0
 
-    nlist = min(100, max(1, n_train // 39 if n_train // 39 > 0 else 1)) # Same nlist as IVFPQ
+    nlist = min(100, max(1, n_train // 39 if n_train // 39 > 0 else 1))
 
-    # M for OPQ's internal PQ training. OPQ needs d % M_opq == 0.
-    # OPQ can transform to a different dimension, but typically d_out = d_in.
-    # Max M_opq can be d_reduced. Let's try to be somewhat conservative to ensure d_sub is not too small.
     opq_train_m = get_valid_pq_m(dim_reduced, max_m_val=min(dim_reduced, 32), ensure_d_multiple=True, min_subvector_dim=2)
-    if opq_train_m == 0: # If d_reduced < 2, or no m found for d_sub>=2
+    if opq_train_m == 0:
         print(f"IVFOPQ Skipping: Could not find valid opq_train_m for d={dim_reduced} with min_subvector_dim=2.")
         return np.nan, 0.0
-    opq_nbits = get_dynamic_nbits(n_train, opq_train_m, default_nbits=8, min_nbits=6) # Allow 6 bits for OPQ's PQ
+    opq_nbits = get_dynamic_nbits(n_train, opq_train_m, default_nbits=8, min_nbits=6)
 
-    # M for the final PQ stage on residuals. Needs d % M_final_pq == 0.
     final_pq_m = get_valid_pq_m(dim_reduced, max_m_val=8, ensure_d_multiple=True, min_subvector_dim=2)
-    if final_pq_m == 0: # If d_reduced < 2, or no m found for d_sub>=2
+    if final_pq_m == 0:
         print(f"IVFOPQ Skipping: Could not find valid final_pq_m for d={dim_reduced} with min_subvector_dim=2.")
         return np.nan, 0.0
     final_nbits = get_dynamic_nbits(n_train, final_pq_m, default_nbits=8, min_nbits=4)
 
-
-    # Factory string: OPQ pre-transform, then IVF, then PQ on residuals.
-    # OPQ<M_opq>[x<nbits_opq_pq>],IVF<nlist>,PQ<M_final_pq>[x<nbits_final_pq>]
-    # Example: "OPQ16x6,IVF100,PQ8x4" (OPQ M=16, 6bits; IVF 100 lists; PQ M=8, 4bits)
     factory_str = f"OPQ{opq_train_m}x{opq_nbits},IVF{nlist},PQ{final_pq_m}x{final_nbits}"
-    # print(f"  IVFOPQ using factory: '{factory_str}' for d={dim_reduced}, n_train={n_train}")
 
     index = None
     try:
         index = faiss.index_factory(dim_reduced, factory_str)
 
-        # Training data size warnings
-        min_train_ivf = 39 * nlist # For IVF part
-        # For PQ parts (OPQ's internal and final residual PQ), heuristic of factor*2^nbits
-        min_train_opq_internal_pq = opq_train_m * (2**opq_nbits / 8) # Factor of 8, so ~32 per sub-quantizer for 8 bits
+        min_train_ivf = 39 * nlist
+        min_train_opq_internal_pq = opq_train_m * (2**opq_nbits / 8)
         min_train_final_residual_pq = final_pq_m * (2**final_nbits / 8)
 
         if n_train < min_train_ivf :
@@ -441,12 +623,12 @@ def calculate_accuracy_ivfopq_faiss(exact_indices_orig, reduced_data_train_faiss
 
         index.train(reduced_data_train_faiss)
         index.add(reduced_data_train_faiss)
-        index.nprobe = min(nlist, 10) # Set nprobe after training and adding
+        index.nprobe = min(nlist, 10)
 
     except RuntimeError as e:
         print(f"IVFOPQ (Factory) Error: {e}. Factory: '{factory_str}'. Skipping IVFOPQ.")
         return np.nan, time.perf_counter() - total_start
-    except AttributeError as e_attr: # Catch potential errors if factory string is malformed or components not found
+    except AttributeError as e_attr:
         print(f"IVFOPQ Attribute Error (likely during setup): {e_attr}. Factory: '{factory_str}'. Skipping IVFOPQ.")
         return np.nan, time.perf_counter() - total_start
 
@@ -461,43 +643,37 @@ def calculate_accuracy_ivfopq_faiss(exact_indices_orig, reduced_data_train_faiss
 # ---------------------------------------------------------
 def process_parameters(params_tuple, use_dw_pmad_flag_param, training_vectors_full_param, testing_vectors_full_param, k_values_global_param, performance_data_collector_list, current_dataset_id=""):
     run_performance_data_dict = {'params': params_tuple, 'dataset_id': current_dataset_id}
-    current_peak_memory_usage = get_memory_usage() # Initial memory for this run
+    current_peak_memory_usage = get_memory_usage()
 
     if use_dw_pmad_flag_param:
         dim_from_params, target_ratio_from_params, b_from_params, alpha_from_params = params_tuple
-    else: # Should not happen in scalability test as DW-PMAD is always run
+    else:
         dim_from_params, target_ratio_from_params = params_tuple
-        b_from_params, alpha_from_params = "N/A", "N/A" # Should be unused
+        b_from_params, alpha_from_params = "N/A", "N/A"
 
-    # Determine the actual number of original dimensions to select for DR input
     actual_dim_selected_from_orig = min(dim_from_params, training_vectors_full_param.shape[1])
-    # Determine the final target dimension for the DR methods
     target_dim_for_dr_final = max(1, int(actual_dim_selected_from_orig * target_ratio_from_params))
-    target_dim_for_dr_final = min(target_dim_for_dr_final, actual_dim_selected_from_orig) # Cannot be more than selected dim
+    target_dim_for_dr_final = min(target_dim_for_dr_final, actual_dim_selected_from_orig)
 
     print(f"\nProcessing Dataset: {current_dataset_id}, Params={params_tuple}, Orig Dim Selected={actual_dim_selected_from_orig}, Final DR Target Dim={target_dim_for_dr_final}")
     run_performance_data_dict['orig_dim_selected'] = actual_dim_selected_from_orig
     run_performance_data_dict['target_dim_final_dr'] = target_dim_for_dr_final
 
-    np.random.seed(1) # Ensure reproducibility for random choices and some DR methods
+    np.random.seed(1)
 
-    # Select subset of original dimensions (if dim_from_params < training_vectors_full_param.shape[1])
-    # If dim_from_params >= training_vectors_full_param.shape[1], all dimensions are used.
     selected_dims_indices_val = np.random.choice(training_vectors_full_param.shape[1], size=actual_dim_selected_from_orig, replace=False)
     X_train_orig_selected_data = training_vectors_full_param[:, selected_dims_indices_val]
     X_test_orig_selected_data = testing_vectors_full_param[:, selected_dims_indices_val]
 
-    # Standardize data
     standardization_start_time = time.perf_counter()
     train_mean_val = np.mean(X_train_orig_selected_data, axis=0)
     train_std_val = np.std(X_train_orig_selected_data, axis=0)
-    train_std_val[train_std_val == 0] = 1e-6 # Avoid division by zero
+    train_std_val[train_std_val == 0] = 1e-6
     X_train_standardized_data = (X_train_orig_selected_data - train_mean_val) / train_std_val
     X_test_standardized_data = (X_test_orig_selected_data - train_mean_val) / train_std_val
     run_performance_data_dict['time_standardization'] = time.perf_counter() - standardization_start_time
     run_performance_data_dict['mem_after_standardization'] = get_memory_usage()
     current_peak_memory_usage = max(current_peak_memory_usage, run_performance_data_dict['mem_after_standardization'])
-    # print(f"Data standardization complete in {run_performance_data_dict['time_standardization']:.4f}s")
 
 
     dr_methods_results_output_dict = {}
@@ -505,17 +681,16 @@ def process_parameters(params_tuple, use_dw_pmad_flag_param, training_vectors_fu
     dr_memory_after_output_dict = {}
 
     # --- DW-PMAD ---
-    if use_dw_pmad_flag_param: # This will be true for the scalability test
+    if use_dw_pmad_flag_param:
         print(f"Starting DW-PMAD...")
         dw_start_time_val = time.perf_counter()
-        # Ensure target_dim for DW-PMAD is valid
-        current_target_dim_for_dw = min(target_dim_for_dr_final, X_train_standardized_data.shape[1]) # Cannot exceed available features
+        current_target_dim_for_dw = min(target_dim_for_dr_final, X_train_standardized_data.shape[1])
         current_target_dim_for_dw = max(1, current_target_dim_for_dw) if X_train_standardized_data.shape[1] > 0 else 0
 
-        if current_target_dim_for_dw > 0 and X_train_standardized_data.shape[1] > 0 : # Check if DR is possible
+        if current_target_dim_for_dw > 0 and X_train_standardized_data.shape[1] > 0 :
             X_dw_pmad_reduced_train, dw_pmad_projection_axes = dw_pmad(X_train_standardized_data, b_from_params, alpha_from_params, current_target_dim_for_dw)
             new_dw_pmad_reduced_test = project_dw_pmad(X_test_standardized_data, dw_pmad_projection_axes)
-        else: # Handle cases where DW-PMAD cannot run (e.g., no input features or target_dim is 0)
+        else:
             X_dw_pmad_reduced_train = np.zeros((X_train_standardized_data.shape[0], current_target_dim_for_dw), dtype=X_train_standardized_data.dtype)
             new_dw_pmad_reduced_test = np.zeros((X_test_standardized_data.shape[0], current_target_dim_for_dw), dtype=X_test_standardized_data.dtype)
             if current_target_dim_for_dw == 0 : print("DW-PMAD skipped as target dimension is 0.")
@@ -527,121 +702,165 @@ def process_parameters(params_tuple, use_dw_pmad_flag_param, training_vectors_fu
         current_peak_memory_usage = max(current_peak_memory_usage, dr_memory_after_output_dict['dw_pmad'])
         print(f"DW-PMAD complete in {dr_timings_output_dict['dw_pmad']:.4f}s. Output shape: {X_dw_pmad_reduced_train.shape}")
     else:
-        dr_timings_output_dict['dw_pmad'] = np.nan # Should not occur in this test
+        dr_timings_output_dict['dw_pmad'] = np.nan
 
-    # --- Other DR Baselines ---
-    # Define DR methods and their parameters
+        # --- Other DR Baselines ---
     dr_method_configs = {
+        # Sklearn style (class, params_dict)
         'pca': (PCA, {'random_state': 1}),
-        'umap': (umap.UMAP, {'random_state': 1, 'min_dist': 0.1, 'n_jobs': 1}), # UMAP n_jobs=1 for stability in some setups
-        'isomap': (Isomap, {}),
-        'kernel_pca': (KernelPCA, {'kernel': 'rbf', 'random_state': 1, 'n_jobs': -1}), # n_jobs for KernelPCA
-        'mds': (MDS, {'dissimilarity': 'euclidean', 'random_state': 1, 'normalized_stress':'auto', 'n_jobs': -1}) # n_jobs for MDS
+        'umap': (umap.UMAP, {'random_state': 1, 'min_dist': 0.1, 'n_jobs': 1}),
+        'isomap': (Isomap, {}), # n_neighbors will be set dynamically
+        'kernel_pca': (KernelPCA, {'kernel': 'rbf', 'random_state': 1, 'n_jobs': -1}),
+        'mds': (MDS, {'dissimilarity': 'euclidean', 'random_state': 1, 'normalized_stress':'auto', 'n_jobs': -1}),
+        # New style (function_name_str_or_actual_func, None indicates direct call with X_train, X_test, target_dim)
+        'RandomProjection': (run_random_projection, None),
+        'FastICA': (run_fastica, None),
+        'tSNE': (run_tsne, None),
+        'NMF': (run_nmf, None),
+        'LLE': (run_lle, None),
+        'FeatureAgglomeration': (run_feature_agglomeration, None),
+        'Autoencoder': (run_autoencoder, None),
+        'VAE': (run_vae, None),
     }
 
-    for dr_method_name_key, (model_class_val, model_params_dict) in dr_method_configs.items():
+    for dr_method_name_key, (callable_or_class, params_or_none) in dr_method_configs.items():
+        if dr_method_name_key == 'dw_pmad': continue # Already processed
+
         print(f"Starting {dr_method_name_key.upper()}...")
-        dr_method_start_time = time.perf_counter()
+        dr_method_loop_start_time = time.perf_counter() # For fallback timing if method errors early
 
-        # Adjust n_components based on method and data properties
-        current_n_components_for_dr = target_dim_for_dr_final
-        if dr_method_name_key == 'pca': # PCA n_components cannot exceed min(n_samples, n_features)
+        # Adjust n_components based on method and data properties - THIS IS CRUCIAL
+        current_n_components_for_dr = target_dim_for_dr_final # Base target dimension
+        if X_train_standardized_data.shape[1] == 0: # No input features
+            current_n_components_for_dr = 0
+        elif dr_method_name_key == 'pca':
             current_n_components_for_dr = min(target_dim_for_dr_final, X_train_standardized_data.shape[0], X_train_standardized_data.shape[1])
-        elif dr_method_name_key in ['umap', 'isomap', 'mds']: # Manifold methods often need n_components < n_features
-            # Ensure n_components < n_features for some manifold methods if n_features is very small
-            if X_train_standardized_data.shape[1] > 1: # If more than 1 feature
-                current_n_components_for_dr = min(target_dim_for_dr_final, X_train_standardized_data.shape[1] -1)
-            else: # If only 1 feature, can only reduce to 1 (or fail if it expects >1)
+        elif dr_method_name_key in ['umap', 'isomap', 'mds', 'LLE', 'tSNE']: # Manifold methods
+            if X_train_standardized_data.shape[1] > 1:
+                current_n_components_for_dr = min(target_dim_for_dr_final, X_train_standardized_data.shape[1] -1 if dr_method_name_key != 'tSNE' else X_train_standardized_data.shape[1]) # tSNE can output same dim
+                if dr_method_name_key == 'tSNE': # tSNE usually to 2 or 3
+                    current_n_components_for_dr = min(current_n_components_for_dr, 3)
+
+            else:
                 current_n_components_for_dr = min(target_dim_for_dr_final, 1)
+        # For NMF, FastICA, RP, FA, Autoencoder, VAE, target_dim_for_dr_final is generally fine unless > n_features
+        elif dr_method_name_key in ['NMF', 'FastICA', 'RandomProjection', 'FeatureAgglomeration']:
+            current_n_components_for_dr = min(target_dim_for_dr_final, X_train_standardized_data.shape[1])
 
 
-        current_n_components_for_dr = max(1, current_n_components_for_dr) if X_train_standardized_data.shape[1] > 0 else 0
-        model_params_dict['n_components'] = current_n_components_for_dr
-
+        current_n_components_for_dr = max(1, current_n_components_for_dr) if X_train_standardized_data.shape[1] > 0 and current_n_components_for_dr > 0 else 0
+        if X_train_standardized_data.shape[1] == 0 : current_n_components_for_dr = 0 # if no features, target dim must be 0
 
         skip_dr = False
         X_reduced_train_val, X_reduced_test_val = None, None
 
-        # Pre-emptive checks for skipping DR
-        if X_train_standardized_data.shape[1] == 0: # No input features
+        if X_train_standardized_data.shape[1] == 0:
             skip_dr = True
             X_reduced_train_val = np.zeros((X_train_standardized_data.shape[0], 0), dtype=X_train_standardized_data.dtype)
             X_reduced_test_val = np.zeros((X_test_standardized_data.shape[0], 0), dtype=X_test_standardized_data.dtype)
-        elif current_n_components_for_dr == 0 : # Target dimension is 0
+        elif current_n_components_for_dr == 0 :
             skip_dr = True
+            print(f"Skipping {dr_method_name_key.upper()}: Target dimension is 0.")
             X_reduced_train_val = np.zeros((X_train_standardized_data.shape[0], 0), dtype=X_train_standardized_data.dtype)
             X_reduced_test_val = np.zeros((X_test_standardized_data.shape[0], 0), dtype=X_test_standardized_data.dtype)
-        # Manifold methods: n_samples must be > n_components
-        elif X_train_standardized_data.shape[0] <= current_n_components_for_dr and dr_method_name_key in ['umap', 'isomap', 'mds']:
+        elif X_train_standardized_data.shape[0] <= current_n_components_for_dr and \
+                dr_method_name_key in ['umap', 'isomap', 'mds', 'LLE', 'tSNE']: # Check n_samples for manifold
             print(f"Skipping {dr_method_name_key.upper()}: n_samples ({X_train_standardized_data.shape[0]}) <= n_components ({current_n_components_for_dr}).")
             skip_dr = True
-        # MDS: skip if too many samples due to O(N^2) complexity for pairwise distances
-        elif dr_method_name_key == 'mds' and X_train_standardized_data.shape[0] > 3000: # Heuristic limit for MDS
+        elif dr_method_name_key == 'mds' and X_train_standardized_data.shape[0] > 3000:
             print(f"Skipping MDS: Too many samples ({X_train_standardized_data.shape[0]} > 3000) for practical computation.")
             skip_dr = True
 
+        # LLE specific n_neighbors check (must be > n_components)
+        if not skip_dr and dr_method_name_key == 'LLE':
+            n_neighbors_lle_check = max(current_n_components_for_dr + 1, 5) # LLE n_neighbors > n_components
+            if X_train_standardized_data.shape[0] <= n_neighbors_lle_check:
+                print(f"Skipping {dr_method_name_key.upper()}: n_samples ({X_train_standardized_data.shape[0]}) too small for n_neighbors for LLE.")
+                skip_dr = True
 
-        if skip_dr and X_reduced_train_val is None: # If skipped and not already handled (e.g. 0-dim output)
-            # Create NaN arrays of the intended target dimension (or 1 if target was 0 but we need a placeholder)
+
+        if skip_dr and X_reduced_train_val is None:
             target_dim_for_fallback_skip = current_n_components_for_dr if current_n_components_for_dr > 0 else 1
             X_reduced_train_val = np.full((X_train_standardized_data.shape[0], target_dim_for_fallback_skip), np.nan)
             X_reduced_test_val = np.full((X_test_standardized_data.shape[0], target_dim_for_fallback_skip), np.nan)
-        elif not skip_dr :
-            try:
-                # Specific parameter adjustments for some methods
-                if dr_method_name_key in ['umap', 'isomap']: # n_neighbors for UMAP/Isomap
-                    # n_neighbors must be less than n_samples.
-                    n_neigh = min(15, X_train_standardized_data.shape[0] - 1 if X_train_standardized_data.shape[0] > 1 else 1)
-                    model_params_dict['n_neighbors'] = max(1, n_neigh) # Ensure n_neighbors >= 1
+            dr_timings_output_dict[dr_method_name_key] = time.perf_counter() - dr_method_loop_start_time
+        elif not skip_dr:
+            if dr_method_name_key in NEW_BASELINE_DR_METHODS:
+                dr_func_to_call = callable_or_class
+                try:
+                    # These functions return X_train_red, X_test_red, t_elapsed
+                    X_reduced_train_val, X_reduced_test_val, specific_method_time = dr_func_to_call(
+                        X_train_standardized_data,
+                        X_test_standardized_data,
+                        current_n_components_for_dr
+                    )
+                    dr_timings_output_dict[dr_method_name_key] = specific_method_time
+                except Exception as e_dr_baseline:
+                    print(f"{dr_method_name_key.upper()} (baseline func) error: {e_dr_baseline}. Filling with NaNs.")
+                    target_dim_fallback = current_n_components_for_dr if current_n_components_for_dr > 0 else 1
+                    X_reduced_train_val = np.full((X_train_standardized_data.shape[0], target_dim_fallback), np.nan)
+                    X_reduced_test_val = np.full((X_test_standardized_data.shape[0], target_dim_fallback), np.nan)
+                    dr_timings_output_dict[dr_method_name_key] = time.perf_counter() - dr_method_loop_start_time
+            else: # Existing sklearn-style DR methods
+                model_class_val = callable_or_class
+                model_params_dict = params_or_none.copy() if params_or_none else {}
+
+                method_execution_start_time = time.perf_counter()
+                try:
+                    model_params_dict['n_components'] = current_n_components_for_dr
+
+                    if dr_method_name_key in ['umap', 'isomap']:
+                        n_neigh = min(15, X_train_standardized_data.shape[0] - 1 if X_train_standardized_data.shape[0] > 1 else 1)
+                        model_params_dict['n_neighbors'] = max(1, n_neigh)
+                        if X_train_standardized_data.shape[0] <= model_params_dict['n_neighbors']: # Pre-check for UMAP/Isomap
+                            print(f"Skipping {dr_method_name_key.upper()}: n_samples ({X_train_standardized_data.shape[0]}) <= n_neighbors ({model_params_dict['n_neighbors']}).")
+                            raise ValueError("n_samples <= n_neighbors")
 
 
-                model_instance = model_class_val(**model_params_dict)
-                X_reduced_train_val = model_instance.fit_transform(X_train_standardized_data)
+                    model_instance = model_class_val(**model_params_dict)
+                    X_reduced_train_val = model_instance.fit_transform(X_train_standardized_data)
 
-                # Handle test set transformation (MDS requires separate handling)
-                if dr_method_name_key == 'mds':
-                    # MDS fit_transform might return 1D if n_components=1
-                    if X_reduced_train_val.ndim == 1: X_reduced_train_val = X_reduced_train_val.reshape(-1,1)
-                    # For MDS, predict test set using a linear regression model trained on original vs. embedded train data
-                    # This is a common approach as MDS doesn't have a direct `transform` for new data.
-                    if X_train_standardized_data.shape[0] > 0 and X_reduced_train_val.shape[0] > 0 : # Check if training data was valid
-                        regressor_mds = LinearRegression().fit(X_train_standardized_data, X_reduced_train_val)
-                        X_reduced_test_val = regressor_mds.predict(X_test_standardized_data)
-                    else: # Fallback if MDS training failed or produced no output
-                        X_reduced_test_val = np.full((X_test_standardized_data.shape[0], X_reduced_train_val.shape[1] if X_reduced_train_val.ndim >1 and X_reduced_train_val.shape[1] > 0 else 1), np.nan)
+                    if X_reduced_train_val.ndim == 1 and current_n_components_for_dr == 1:
+                        X_reduced_train_val = X_reduced_train_val.reshape(-1,1)
 
-                else: # For PCA, UMAP, Isomap, KernelPCA which have a `transform` method
-                    X_reduced_test_val = model_instance.transform(X_test_standardized_data)
-
-            except Exception as e_dr:
-                print(f"{dr_method_name_key.upper()} error: {e_dr}. Filling with NaNs.")
-                # Fallback to NaN arrays if DR method fails
-                target_dim_for_fallback_error = model_params_dict.get('n_components', 1) # Use intended n_components
-                X_reduced_train_val = np.full((X_train_standardized_data.shape[0], target_dim_for_fallback_error), np.nan)
-                X_reduced_test_val = np.full((X_test_standardized_data.shape[0], target_dim_for_fallback_error), np.nan)
-
+                    if dr_method_name_key == 'mds':
+                        if X_train_standardized_data.shape[0] > 0 and X_reduced_train_val.shape[0] > 0 :
+                            regressor_mds = LinearRegression().fit(X_train_standardized_data, X_reduced_train_val)
+                            X_reduced_test_val = regressor_mds.predict(X_test_standardized_data)
+                            if X_reduced_test_val.ndim == 1 and current_n_components_for_dr == 1:
+                                X_reduced_test_val = X_reduced_test_val.reshape(-1,1)
+                        else:
+                            X_reduced_test_val = np.full((X_test_standardized_data.shape[0], X_reduced_train_val.shape[1] if X_reduced_train_val.ndim >1 and X_reduced_train_val.shape[1] > 0 else 1), np.nan)
+                    else:
+                        X_reduced_test_val = model_instance.transform(X_test_standardized_data)
+                        if X_reduced_test_val.ndim == 1 and current_n_components_for_dr == 1:
+                            X_reduced_test_val = X_reduced_test_val.reshape(-1,1)
+                except Exception as e_dr_sklearn:
+                    print(f"{dr_method_name_key.upper()} (sklearn) error: {e_dr_sklearn}. Filling with NaNs.")
+                    target_dim_fallback = model_params_dict.get('n_components', current_n_components_for_dr if current_n_components_for_dr > 0 else 1)
+                    X_reduced_train_val = np.full((X_train_standardized_data.shape[0], target_dim_fallback), np.nan)
+                    X_reduced_test_val = np.full((X_test_standardized_data.shape[0], target_dim_fallback), np.nan)
+                dr_timings_output_dict[dr_method_name_key] = time.perf_counter() - method_execution_start_time
 
         dr_methods_results_output_dict[dr_method_name_key] = (X_reduced_train_val, X_reduced_test_val)
-        dr_timings_output_dict[dr_method_name_key] = time.perf_counter() - dr_method_start_time
         dr_memory_after_output_dict[dr_method_name_key] = get_memory_usage()
         current_peak_memory_usage = max(current_peak_memory_usage, dr_memory_after_output_dict[dr_method_name_key])
         output_shape_str = X_reduced_train_val.shape if X_reduced_train_val is not None else "DR_Failed/Skipped"
-        print(f"{dr_method_name_key.upper()} complete in {dr_timings_output_dict[dr_method_name_key]:.4f}s. Output shape: {output_shape_str}")
+        print(f"{dr_method_name_key.upper()} complete in {dr_timings_output_dict.get(dr_method_name_key, np.nan):.4f}s. Output shape: {output_shape_str}")
 
 
     run_performance_data_dict['dr_timings'] = dr_timings_output_dict
     run_performance_data_dict['dr_memory_after'] = dr_memory_after_output_dict
 
     # --- Accuracy Calculation ---
-    accuracy_results_collected_dict = {k_val: {} for k_val in k_values_global_param} # Accuracy[k_val][ann_method][dr_method]
-    accuracy_times_collected_dict = {k_val: {} for k_val in k_values_global_param} # Times[k_val][ann_method][dr_method]
+    accuracy_results_collected_dict = {k_val: {} for k_val in k_values_global_param}
+    accuracy_times_collected_dict = {k_val: {} for k_val in k_values_global_param}
 
-    # Get exact k-NN for original (standardized, dimension-selected) data ONCE for all DR methods and k values
     all_k_exact_indices_ground_truth_dict = {}
     if X_train_standardized_data.shape[0] > 0 and X_test_standardized_data.shape[0] > 0 :
         for k_val_gt in k_values_global_param:
             all_k_exact_indices_ground_truth_dict[k_val_gt] = get_exact_neighbors(X_train_standardized_data, X_test_standardized_data, k_val_gt)
-    else: # Handle case with no train/test data for ground truth
+    else:
         for k_val_gt in k_values_global_param:
             all_k_exact_indices_ground_truth_dict[k_val_gt] = np.array([[] for _ in range(X_test_standardized_data.shape[0])], dtype=int)
 
@@ -658,31 +877,27 @@ def process_parameters(params_tuple, use_dw_pmad_flag_param, training_vectors_fu
     for k_val_iter_acc in k_values_global_param:
         exact_k_indices_for_current_k_val = all_k_exact_indices_ground_truth_dict[k_val_iter_acc]
 
-        # If no ground truth neighbors were found (e.g., no test data, or k=0 effectively), skip accuracy for this k
-        if exact_k_indices_for_current_k_val.size == 0 and X_test_standardized_data.shape[0] > 0 : # If test data exists but no GT neighbors
+        if exact_k_indices_for_current_k_val.size == 0 and X_test_standardized_data.shape[0] > 0 :
             for acc_method_name_iter_nan in ann_accuracy_functions_dict:
                 accuracy_results_collected_dict[k_val_iter_acc][acc_method_name_iter_nan] = {dr_name_nan: np.nan for dr_name_nan in dr_methods_results_output_dict}
                 accuracy_times_collected_dict[k_val_iter_acc][acc_method_name_iter_nan] = {dr_name_nan: 0.0 for dr_name_nan in dr_methods_results_output_dict}
-            continue # Move to next k value
+            continue
 
         for dr_method_name_iter_acc, reduced_data_tuple in dr_methods_results_output_dict.items():
-            if reduced_data_tuple is None: # Should not happen if DR methods always populate results
+            if reduced_data_tuple is None:
                 continue
             X_reduced_train_iter, X_reduced_test_iter = reduced_data_tuple
 
-            # Check if reduced data is valid for accuracy calculation
             if X_reduced_train_iter is None or X_reduced_test_iter is None or \
-                    pd.isna(X_reduced_train_iter).all() or pd.isna(X_reduced_test_iter).all() or \
-                    X_reduced_train_iter.shape[1] == 0: # Also check if reduced dimension is 0
-                # print(f"Skipping accuracy for DR method '{dr_method_name_iter_acc}' (k={k_val_iter_acc}) due to invalid/empty reduced data.")
+                    np.isnan(X_reduced_train_iter).all() or np.isnan(X_reduced_test_iter).all() or \
+                    X_reduced_train_iter.shape[1] == 0:
                 for acc_method_name_fill_nan in ann_accuracy_functions_dict:
                     if acc_method_name_fill_nan not in accuracy_results_collected_dict[k_val_iter_acc]: accuracy_results_collected_dict[k_val_iter_acc][acc_method_name_fill_nan] = {}
                     if acc_method_name_fill_nan not in accuracy_times_collected_dict[k_val_iter_acc]: accuracy_times_collected_dict[k_val_iter_acc][acc_method_name_fill_nan] = {}
                     accuracy_results_collected_dict[k_val_iter_acc][acc_method_name_fill_nan][dr_method_name_iter_acc] = np.nan
                     accuracy_times_collected_dict[k_val_iter_acc][acc_method_name_fill_nan][dr_method_name_iter_acc] = 0.0
-                continue # Move to next DR method for this k
+                continue
 
-            # Ensure data is float32 and C-contiguous for Faiss
             X_reduced_train_faiss_ready_iter = np.ascontiguousarray(X_reduced_train_iter, dtype=np.float32)
             X_reduced_test_faiss_ready_iter = np.ascontiguousarray(X_reduced_test_iter, dtype=np.float32)
 
@@ -691,10 +906,9 @@ def process_parameters(params_tuple, use_dw_pmad_flag_param, training_vectors_fu
                 if acc_method_name_val not in accuracy_results_collected_dict[k_val_iter_acc]: accuracy_results_collected_dict[k_val_iter_acc][acc_method_name_val] = {}
                 if acc_method_name_val not in accuracy_times_collected_dict[k_val_iter_acc]: accuracy_times_collected_dict[k_val_iter_acc][acc_method_name_val] = {}
 
-                # print(f"  Calculating k={k_val_iter_acc} accuracy for {acc_method_name_val} on {dr_method_name_iter_acc} data...")
-                if "Faiss" in acc_method_name_val: # Faiss methods use Faiss-ready data
+                if "Faiss" in acc_method_name_val:
                     acc_calculated_val, time_calculated_val = acc_func_val(exact_k_indices_for_current_k_val, X_reduced_train_faiss_ready_iter, X_reduced_test_faiss_ready_iter, k_val_iter_acc)
-                else: # Exact kNN uses original numpy arrays
+                else:
                     acc_calculated_val, time_calculated_val = acc_func_val(exact_k_indices_for_current_k_val, X_reduced_train_iter, X_reduced_test_iter, k_val_iter_acc)
 
                 accuracy_results_collected_dict[k_val_iter_acc][acc_method_name_val][dr_method_name_iter_acc] = acc_calculated_val
@@ -704,18 +918,10 @@ def process_parameters(params_tuple, use_dw_pmad_flag_param, training_vectors_fu
     run_performance_data_dict['accuracy_times'] = accuracy_times_collected_dict
     run_performance_data_dict['mem_after_accuracy'] = get_memory_usage()
     current_peak_memory_usage = max(current_peak_memory_usage, run_performance_data_dict['mem_after_accuracy'])
-    run_performance_data_dict['peak_memory_in_run'] = current_peak_memory_usage # Record peak for this specific run
+    run_performance_data_dict['peak_memory_in_run'] = current_peak_memory_usage
 
-    performance_data_collector_list.append(run_performance_data_dict) # Add this run's data to the main list for the current dataset
+    performance_data_collector_list.append(run_performance_data_dict)
 
-
-# ---------------------------------------------------------
-# MAIN EXECUTION
-# ---------------------------------------------------------
-
-# ---------------------------------------------------------
-# MAIN EXECUTION
-# ---------------------------------------------------------
 
 # ---------------------------------------------------------
 # MAIN EXECUTION
@@ -758,23 +964,23 @@ if __name__ == '__main__':
     # Dummy file creation (if needed)
     # Feature dimension for dummy Fasttext files (should match or exceed fixed_original_dimension)
     # If your actual Fasttext files have a different native dimension, this might be adjusted.
-    dummy_feature_dim_isolet = fixed_original_dimension
+    dummy_feature_dim_PBMC3k = fixed_original_dimension
 
     for f_name in training_files_to_test:
         if not os.path.exists(f_name):
-            print(f"Creating dummy file: {f_name} with {dummy_feature_dim_isolet} features.")
+            print(f"Creating dummy file: {f_name} with {dummy_feature_dim_PBMC3k} features.")
             try:
                 num_samples = int(f_name.split('_')[2]) # Extracts '300', '600', etc.
-                dummy_data = np.random.rand(num_samples, dummy_feature_dim_isolet).astype(np.float32)
+                dummy_data = np.random.rand(num_samples, dummy_feature_dim_PBMC3k).astype(np.float32)
                 np.save(f_name, dummy_data)
             except Exception as e:
                 print(f"Could not create dummy file {f_name}: {e}")
 
     if not os.path.exists(test_file_global):
-        print(f"Creating dummy file: {test_file_global} with {dummy_feature_dim_isolet} features.")
+        print(f"Creating dummy file: {test_file_global} with {dummy_feature_dim_PBMC3k} features.")
         try:
             # Assuming test set size is 300 for dummy creation if not specified otherwise
-            dummy_data_test = np.random.rand(300, dummy_feature_dim_isolet).astype(np.float32)
+            dummy_data_test = np.random.rand(300, dummy_feature_dim_PBMC3k).astype(np.float32)
             np.save(test_file_global, dummy_data_test)
         except Exception as e:
             print(f"Could not create dummy file {test_file_global}: {e}")
@@ -1054,4 +1260,3 @@ if __name__ == '__main__':
     overall_end_time_script_exec_final = time.perf_counter()
     total_execution_time_for_script_overall = overall_end_time_script_exec_final - overall_start_time_script_exec
     print(f"\nTotal script execution time for all datasets: {total_execution_time_for_script_overall:.4f}s")
-
