@@ -15,12 +15,12 @@ display_methods_config = [
     {'x_label': 'Isomap',  'full_csv_col_name': 'Isomap Accuracy'},
     {'x_label': 'KPCA',    'full_csv_col_name': 'KernelPCA Accuracy'},
     {'x_label': 'AE',      'full_csv_col_name': 'Autoencoder Accuracy'},
-    {'x_label': 'FeatAgg', 'full_csv_col_name': 'Feature Agglomeration Accuracy'},
+    {'x_label': 'FA', 'full_csv_col_name': 'FeatureAgglomeration Accuracy'},
     {'x_label': 'LLE',     'full_csv_col_name': 'LLE Accuracy'},
     {'x_label': 'NMF',     'full_csv_col_name': 'NMF Accuracy'},
-    {'x_label': 'RandProj','full_csv_col_name': 'Random Projection Accuracy'},
+    {'x_label': 'RP','full_csv_col_name': 'RandomProjection Accuracy'},
     {'x_label': 'VAE',     'full_csv_col_name': 'VAE Accuracy'},
-    {'x_label': 'tSNE',    'full_csv_col_name': 't-SNE Accuracy'},
+    {'x_label': 'tSNE',    'full_csv_col_name': 'tSNE Accuracy'},
     {'x_label': 'LSH',     'full_csv_col_name': 'LSH Accuracy'}
 ]
 
@@ -213,7 +213,7 @@ if final_legend_info:
     elif len(labels)<=6: num_cols = 3
     else: num_cols = 6
     fig.legend(handles, labels, loc='upper center', ncol=num_cols,
-               bbox_to_anchor=(0.5,0.945), title="Baselines", fontsize=14, title_fontsize=16)
+               bbox_to_anchor=(0.5,1), title="Baselines", fontsize=14, title_fontsize=16)
 
 plt.subplots_adjust(top=0.88, bottom=0.15, left=0.07, right=0.98, hspace=0.55, wspace=0.25)
 plt.show()

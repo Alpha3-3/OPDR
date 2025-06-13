@@ -62,32 +62,39 @@ for conf in display_methods_config:
 # 2. File paths, dataset names, and global style
 #--------------------------------------------------
 excel_files = [
-    "scalability_ANN_SOTA_results_900_Fasttext_origD200_ratio0p6_alpha6_b90.xlsx",
-    "scalability_ANN_SOTA_results_900_Isolet_origD200_ratio0p6_alpha6_b90.xlsx",
     "scalability_ANN_SOTA_results_900_PBMC3k_origD200_ratio0p6_alpha6_b90.xlsx"
 ]
-dataset_names = ["Fasttext", "Isolet", "PBMC3k"]
+dataset_names = ["PBMC3k"]
 
-plt.rcParams.update({'font.size': 14})
+plt.rcParams.update({'font.size': 22})
 plt.style.use('tableau-colorblind10')
 
-fig, axes = plt.subplots(nrows=3, ncols=3, figsize=(18, 12), squeeze=False)
+# single row, three columns
+fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(18, 6), squeeze=False)
+
+# mapping sheet-name → display title
+sheet_name_mapping = {
+    "Exact_kNN":      "kNN",
+    "HNSWFlat_Faiss": "HNSWFlat",
+    "IVFPQ_Faiss":    "IVFPQ"
+}
 
 #--------------------------------------------------
-# 3. Plotting loop with relative normalization and row labels
+# 3. Plotting loop with relative normalization and row label
 #--------------------------------------------------
 for row_idx, file_path in enumerate(excel_files):
     xls = pd.ExcelFile(file_path)
-    sheet_names = xls.sheet_names[:3]
+    original_sheets = xls.sheet_names[:3]
 
-    for col_idx, sheet in enumerate(sheet_names):
+    for col_idx, orig_sheet in enumerate(original_sheets):
         ax = axes[row_idx][col_idx]
-        df = xls.parse(sheet).sort_values('k_Neighbors')
+        df = xls.parse(orig_sheet).sort_values('k_Neighbors')
 
         # pick only desired accuracy columns
         acc_cols = [
-            c for c in df.columns if c.endswith('_Accuracy')
-                                     and c.lower() not in ['pca_accuracy','mds_accuracy','fastica_accuracy']
+            c for c in df.columns
+            if c.endswith('_Accuracy')
+               and c.lower() not in ['pca_accuracy','mds_accuracy','fastica_accuracy']
         ]
         # compute max for relative scaling
         max_acc = df[acc_cols].max().max()
@@ -106,22 +113,24 @@ for row_idx, file_path in enumerate(excel_files):
                 color=style['color']
             )
 
-        ax.set_title(sheet, fontsize=16)
-        ax.set_xlabel('k', fontsize=14)
-        ax.set_ylabel('Relative Accuracy', fontsize=14)
+        # set the renamed title
+        display_title = sheet_name_mapping.get(orig_sheet, orig_sheet)
+        ax.set_title(display_title, fontsize=22)
+        ax.set_xlabel('k', fontsize=22)
+        ax.set_ylabel('Relative Accuracy', fontsize=22)
 
         # set x-ticks to actual k values
         xticks = sorted(df['k_Neighbors'].unique())
         ax.set_xticks(xticks)
-        plt.setp(ax.get_xticklabels(), rotation=0, fontsize=12)
+        plt.setp(ax.get_xticklabels(), rotation=0, fontsize=22)
 
-        # annotate row (dataset) name on first column
-        if col_idx == 0:
-            ax.text(
-                -0.3, 0.5, dataset_names[row_idx],
-                transform=ax.transAxes, fontsize=18,
-                fontweight='bold', va='center', ha='right'
-            )
+        # annotate the dataset name once on the leftmost subplot
+        #if col_idx == 0:
+            #ax.text(
+                #-0.3, 0.5, dataset_names[row_idx],
+                #transform=ax.transAxes, fontsize=18,
+                #fontweight='bold', va='center', ha='right'
+            #)
 
         ax.set_ylim(0, 1.05)
         ax.grid(True, linestyle='--', alpha=0.5)
@@ -130,6 +139,6 @@ for row_idx, file_path in enumerate(excel_files):
 # 4. Legend & layout
 #--------------------------------------------------
 handles, labels = axes[0][0].get_legend_handles_labels()
-fig.legend(handles, labels, loc='lower center', ncol=6, fontsize=12, frameon=False)
+fig.legend(handles, labels, loc='lower center', ncol=6, fontsize=18, frameon=False)
 plt.tight_layout(rect=[0, 0.05, 1, 1])
 plt.show()

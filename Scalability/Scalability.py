@@ -48,103 +48,92 @@ manual_styles = {
 }
 
 def normalize(name: str) -> str:
-    # remove spaces, hyphens, underscores for robust matching
     return name.lower().replace(' ', '').replace('-', '').replace('_', '')
 
+# build lookup styles
 method_styles = {}
 for conf in display_methods_config:
-    key_norm = normalize(conf['full_col'])
+    key = normalize(conf['full_col'])
     style = manual_styles.get(conf['full_col'], {}).copy()
-    style['color'] = predefined_colors.get(conf['full_col'])
+    style['color']      = predefined_colors.get(conf['full_col'])
     style['short_name'] = conf['x_label']
-    method_styles[key_norm] = style
+    method_styles[key]  = style
 
 #--------------------------------------------------
-# 2. Datasets, sample sizes, metrics, and k-values
+# 2. Only PBMC3k, sample sizes → ratio, metrics, k-values
 #--------------------------------------------------
-datasets     = ["Fasttext", "Isolet", "PBMC3k"]
+dataset     = "PBMC3k"
 sample_sizes = [300, 600, 900, 1200]
 max_sample   = max(sample_sizes)
+# each step of ratio is sample / (max_sample/4) → 1,2,3,4
+metrics     = ["Exact_kNN", "HNSWFlat_Faiss", "IVFPQ_Faiss"]
+k_values    = [1, 3, 6, 10, 15]
 
-metrics  = ["Exact_kNN", "HNSWFlat_Faiss", "IVFPQ_Faiss"]
-k_values = [1, 3, 6, 10, 15]
-
-# global plot style
-plt.rcParams.update({'font.size': 14})
+plt.rcParams.update({'font.size': 22})
 plt.style.use('tableau-colorblind10')
 
 #--------------------------------------------------
-# 3. Loop over metrics
+# 3. Loop over metrics, single-row of subplots
 #--------------------------------------------------
 for metric in metrics:
     fig, axes = plt.subplots(
-        nrows=len(datasets), ncols=len(k_values),
-        figsize=(20, 12), squeeze=False
+        nrows=1, ncols=len(k_values),
+        figsize=(20, 5), squeeze=False
     )
 
-    # per-dataset, per-k subplot
-    for di, dataset in enumerate(datasets):
-        for ki, k in enumerate(k_values):
-            ax = axes[di][ki]
-            max_acc = 0.0
-            records = {}
+    for ki, k in enumerate(k_values):
+        ax = axes[0][ki]
+        max_acc = 0.0
+        records = {}
 
-            # gather data for this dataset/metric/k
-            for ss in sample_sizes:
-                path = (
-                    f"scalability_ANN_SOTA_results_"
-                    f"{ss}_{dataset}_origD200_ratio0p6_alpha6_b90.xlsx"
-                )
-                if not os.path.exists(path):
-                    continue
-                df = pd.read_excel(path, sheet_name=metric)
-                sub = df[df['k_Neighbors'] == k]
-                for col in sub.columns:
-                    if col.endswith('_Accuracy') and col.lower() not in [
-                        'pca_accuracy', 'mds_accuracy', 'fastica_accuracy'
-                    ]:
-                        acc = sub[col].iat[0]
-                        key_norm = normalize(col)
-                        records.setdefault(key_norm, {})[ss] = acc
-                        if acc > max_acc:
-                            max_acc = acc
+        # collect accuracy for each sample size
+        for ss in sample_sizes:
+            path = (
+                f"scalability_ANN_SOTA_results_"
+                f"{ss}_{dataset}_origD200_ratio0p6_alpha6_b90.xlsx"
+            )
+            if not os.path.exists(path):
+                continue
+            df = pd.read_excel(path, sheet_name=metric)
+            sub = df[df['k_Neighbors'] == k]
+            for col in sub.columns:
+                if col.endswith('_Accuracy') and col.lower() not in [
+                    'pca_accuracy', 'mds_accuracy', 'fastica_accuracy'
+                ]:
+                    acc = sub[col].iat[0]
+                    key = normalize(col)
+                    records.setdefault(key, {})[ss] = acc
+                    max_acc = max(max_acc, acc)
 
-            # plot each method's relative curve
-            for key_norm, ss_dict in records.items():
-                style = method_styles.get(key_norm, {})
-                xs = [ss / max_sample for ss in sorted(ss_dict)]
-                ys = [ss_dict[ss] / max_acc for ss in sorted(ss_dict)]
-                ax.plot(
-                    xs, ys,
-                    label=style.get('short_name', key_norm),
-                    marker=style.get('marker', 'o'),
-                    linestyle=style.get('linestyle', '-'),
-                    color=style.get('color', None)
-                )
+        # plot each method
+        for key, ss_dict in records.items():
+            style = method_styles.get(key, {})
+            # compute ratio ticks: ss / (max_sample/4)
+            xs = [ss / (max_sample/4) for ss in sorted(ss_dict)]
+            ys = [ss_dict[ss] / max_acc for ss in sorted(ss_dict)]
+            ax.plot(
+                xs, ys,
+                label=style.get('short_name', key),
+                marker=style.get('marker', 'o'),
+                linestyle=style.get('linestyle', '-'),
+                color=style.get('color', None)
+            )
 
-            # subplot formatting
-            ax.set_title(f"k = {k}", fontsize=14)
-            if ki == 0:
-                ax.text(
-                    -0.3, 0.5, dataset,
-                    transform=ax.transAxes,
-                    fontsize=16, fontweight='bold',
-                    va='center', ha='right'
-                )
-            ax.set_xlabel("Sample Size (%)", fontsize=12)
-            ax.set_ylabel("Rel. Accuracy", fontsize=12)
-            ticks = [ss / max_sample for ss in sample_sizes]
-            ax.set_xticks(ticks)
-            ax.set_xticklabels([f"{int(ss*100/max_sample)}%" for ss in sample_sizes])
-            ax.set_ylim(0, 1.05)
-            ax.grid(True, linestyle='--', alpha=0.5)
+        ax.set_title(f"k = {k}", fontsize=22)
+        #if ki == 0:
+            #ax.text(-0.3, 0.5, dataset, transform=ax.transAxes, fontsize=16, fontweight='bold', va='center', ha='right')
+        ax.set_xlabel("Sample Size Ratio", fontsize=22)
+        ax.set_ylabel("Relative Accuracy", fontsize=22)
+        ax.set_xticks([1, 2, 3, 4])
+        ax.set_xlim(0.8, 4.2)
+        ax.set_ylim(0, 1.05)
+        ax.grid(True, linestyle='--', alpha=0.5)
 
     # legend & layout
     handles, labels = axes[0][0].get_legend_handles_labels()
     fig.legend(
         handles, labels,
-        loc='lower center', ncol=6, fontsize=12, frameon=False
+        loc='lower center', ncol=6, fontsize=22, frameon=False
     )
-    plt.suptitle(metric, fontsize=18, y=1.02)
     plt.tight_layout(rect=[0, 0.05, 1, 0.97])
     plt.show()

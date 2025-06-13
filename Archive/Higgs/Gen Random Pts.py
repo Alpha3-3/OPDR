@@ -8,7 +8,7 @@ random.seed(2)
 np.random.seed(2)
 
 # Path to the CSV file
-csv_file_path = r'D:\My notes\UW\HPDIC Lab\OPDR\datasets\HIGGS.csv'
+csv_file_path = r'D:\My notes\UW\HPDIC Lab\OPDR\HIGGS.csv'
 if not os.path.exists(csv_file_path):
     raise FileNotFoundError(f"The file {csv_file_path} does not exist")
 
