@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import math  # for math.ceil
+import os  # to handle file paths
 
 # Increase global font size and use colorblind-friendly style
 ggs = {'font.size': 14}
@@ -10,11 +11,14 @@ plt.style.use('tableau-colorblind10')
 #--------------------------------------------------
 # 1. List of CSV files and dataset names
 #--------------------------------------------------
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
 csv_paths = [
-    "parameter_sweep_results_Fasttext_Multiple_methods_with_additional_baselines.csv",
-    "parameter_sweep_results_Isolet_Multiple_methods_with_additional_baselines.csv",
-    "parameter_sweep_results_Arcene_Multiple_methods_with_additional_baselines.csv",
-    "parameter_sweep_results_PBMC3k_Multiple_methods_with_additional_baselines.csv"
+    os.path.join(script_dir, "parameter_sweep_results_Fasttext_Multiple_methods_with_additional_baselines.csv"),
+    os.path.join(script_dir, "parameter_sweep_results_Isolet_Multiple_methods_with_additional_baselines.csv"),
+    os.path.join(script_dir, "parameter_sweep_results_Arcene_Multiple_methods_with_additional_baselines.csv"),
+    os.path.join(script_dir, "parameter_sweep_results_PBMC3k_Multiple_methods_with_additional_baselines.csv")
 ]
 dataset_names = ["Fasttext", "Isolet", "Arcene", "PBMC3k"]
 
@@ -22,7 +26,7 @@ dataset_names = ["Fasttext", "Isolet", "Arcene", "PBMC3k"]
 # 2. Display config and predefined colors/names
 #--------------------------------------------------
 display_methods_config = [
-    {'x_label': 'MPAD',    'full_csv_col_name': 'MPAD Accuracy'},
+    {'x_label': 'QPAD',    'full_csv_col_name': 'MPAD Accuracy'},
     {'x_label': 'UMAP',    'full_csv_col_name': 'UMAP Accuracy'},
     {'x_label': 'Isomap',  'full_csv_col_name': 'Isomap Accuracy'},
     {'x_label': 'KPCA',    'full_csv_col_name': 'KernelPCA Accuracy'},
@@ -38,14 +42,15 @@ display_methods_config = [
 
 predefined_method_attributes = {
     'MPAD Accuracy':     {'color': 'red'},
-    'UMAP Accuracy':     {'color': 'green'},
-    'Isomap Accuracy':   {'color': 'orange'},
-    'KernelPCA Accuracy':{'color': 'plum'},
-    'Autoencoder Accuracy': {'color': 'blue'},
-    'Feature Agglomeration Accuracy': {'color': 'blue'},
-    'LLE Accuracy': {'color': 'gray'},
-    'NMF Accuracy': {'color': 'yellowgreen'},
-    'Random Projection Accuracy': {'color': 'brown'},
+    'PCA Accuracy':      {'color': '#FF8C00'},
+    'UMAP Accuracy':     {'color': '#8B4513'},
+    'Isomap Accuracy':   {'color': '#FF1493'},
+    'KernelPCA Accuracy':{'color': '#9370DB'},
+    'Autoencoder Accuracy': {'color': '#32CD32'},
+    'Feature Agglomeration Accuracy': {'color': '#FFD700'},
+    'LLE Accuracy': {'color': '#4169E1'},
+    'NMF Accuracy': {'color': '#006400'},
+    'Random Projection Accuracy': {'color': '#808080'},
     'VAE Accuracy': {'color': 'tan'},
     't-SNE Accuracy': {'color': 'teal'},
     'LSH Accuracy': {'color': 'olive'}
@@ -121,20 +126,85 @@ def get_subset_for_parameter(df, param, baseline):
     return sub
 
 #--------------------------------------------------
-# 4. Plotting setup and execution
+# 4. Find common best baseline across all datasets
 #--------------------------------------------------
-n_datasets = len(csv_paths)
-params_to_ablate = ['k', 'Target Ratio', 'b', 'alpha']
-fig, axes = plt.subplots(n_datasets, len(params_to_ablate), figsize=(24, 16))
-all_handles = {}
-
+print("=== Finding common best baseline across all datasets ===")
+# Load all datasets first
+all_dfs = []
 for idx, path in enumerate(csv_paths):
     df = pd.read_csv(path)
     df = df[~df['b'].isin([40, 50])]
+    all_dfs.append(df)
+    print(f"Loaded {dataset_names[idx]}: {len(df)} rows")
+
+# Get unique parameter values from first dataset (assuming all have same parameters)
+df_ref = all_dfs[0]
+def uniq(col): return [x for x in df_ref[col].unique() if not (col=='k' and x==1)]
+unique_k = uniq('k')
+unique_tr = uniq('Target Ratio')
+unique_b = uniq('b')
+unique_alpha = uniq('alpha')
+
+# Search for best common baseline
+best_common_baseline = None
+best_common_score = -1
+
+for k in unique_k:
+    for tr in unique_tr:
+        for b in unique_b:
+            for a in unique_alpha:
+                cand = {'k': k, 'Target Ratio': tr, 'b': b, 'alpha': a}
+                
+                # Calculate average score across all datasets
+                total_score = 0.0
+                valid_datasets = 0
+                
+                for idx, df in enumerate(all_dfs):
+                    tot, cnt = ablation_dw_pmad_accuracy(df, cand)
+                    if cnt > 0:
+                        score = tot / cnt
+                        if score >= 0.5:  # Only consider if score is reasonable
+                            total_score += score
+                            valid_datasets += 1
+                
+                # Average score across all valid datasets
+                if valid_datasets == len(all_dfs):  # All datasets must be valid
+                    avg_score = total_score / valid_datasets
+                    if avg_score > best_common_score:
+                        best_common_score = avg_score
+                        best_common_baseline = cand.copy()
+
+print(f"\n*** Best common baseline for all datasets ***")
+print(f"Parameters: k={best_common_baseline['k']}, DRR={best_common_baseline['Target Ratio']:.1f}, "
+      f"b={best_common_baseline['b']}, α={best_common_baseline['alpha']:.0f}")
+print(f"Average score: {best_common_score:.2%}\n")
+
+# Print individual dataset scores with this baseline
+for idx, df in enumerate(all_dfs):
+    tot, cnt = ablation_dw_pmad_accuracy(df, best_common_baseline)
+    if cnt > 0:
+        print(f"{dataset_names[idx]}: {tot/cnt:.2%}")
+
+#--------------------------------------------------
+# 5. Plotting setup and execution
+#--------------------------------------------------
+n_datasets = len(csv_paths)
+params_to_ablate = ['k', 'Target Ratio', 'b', 'alpha']
+param_display_names = {'k': 'k', 'Target Ratio': 'DRR', 'b': 'b', 'alpha': 'α'}
+# Set width ratios: alpha column gets more space (1.5x) to avoid label overlap
+fig, axes = plt.subplots(n_datasets, len(params_to_ablate), figsize=(24, 16),
+                         gridspec_kw={'width_ratios': [1, 1, 1, 1.5]})
+all_handles = {}
+
+for idx, df in enumerate(all_dfs):
     # Normalize column keys for lookup
     acc_cols = [c for c in df.columns if c.endswith('Accuracy') and c not in ['PCA Accuracy','FastICA Accuracy','MDS Accuracy']]
-    best_base, best_score = find_best_baseline(df)
-    print(f"{dataset_names[idx]} – baseline {best_base}, score {best_score:.2%}")
+    
+    # Use the common baseline for all datasets
+    best_base = best_common_baseline
+    tot, cnt = ablation_dw_pmad_accuracy(df, best_base)
+    best_score = tot / cnt if cnt > 0 else 0
+    print(f"\n{dataset_names[idx]} – using common baseline, score {best_score:.2%}")
 
     for j, param in enumerate(params_to_ablate):
         ax = axes[idx, j]
@@ -155,20 +225,22 @@ for idx, path in enumerate(csv_paths):
         else:
             plt.setp(ax.get_xticklabels(), rotation=0, fontsize=12)
 
-        ax.set_xlabel(param, fontsize=16)
-        ax.set_ylabel('Accuracy', fontsize=16)
+        # Use display name for x-axis label
+        display_name = param_display_names.get(param, param)
+        ax.set_xlabel(display_name, fontsize=16)
+        ax.set_ylabel('Recall@k', fontsize=16)
         ax.set_xticks(summary[param])
         ax.set_xticklabels([f'{x:.2f}' if isinstance(x, float) else x for x in summary[param]], fontsize=12)
 
         if j == 0:
             ax.set_title(
-                f"{dataset_names[idx]} | baseline k={best_base['k']}, TR={best_base['Target Ratio']:.1f}, "
+                f"{dataset_names[idx]} | baseline k={best_base['k']}, DRR={best_base['Target Ratio']:.1f}, "
                 f"b={best_base['b']}, α={best_base['alpha']:.0f}",
                 loc='left', fontsize=16
             )
 
 #--------------------------------------------------
-# 5. Global legend & layout adjustments
+# 6. Global legend & layout adjustments
 #--------------------------------------------------
 num_items = len(all_handles)
 ncol = math.ceil(num_items / 2) if num_items else 1

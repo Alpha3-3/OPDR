@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import os
 
 #---------------------------
 # Control variables
@@ -14,11 +15,14 @@ SUBPLOT_WIDTH_RATIOS = [1, 1, 1, 1]  # Relative widths for the 4 subplots in eac
 #---------------------------
 # File paths and dataset names
 #---------------------------
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
 csv_paths = [
-    "parameter_sweep_results_Fasttext_Multiple_methods.csv",
-    "parameter_sweep_results_Isolet_Multiple_methods.csv",
-    "parameter_sweep_results_Arcene_Multiple_methods.csv",
-    "parameter_sweep_results_PBMC3k_Multiple_methods.csv"
+    os.path.join(script_dir, "parameter_sweep_results_Fasttext_Multiple_methods.csv"),
+    os.path.join(script_dir, "parameter_sweep_results_Isolet_Multiple_methods.csv"),
+    os.path.join(script_dir, "parameter_sweep_results_Arcene_Multiple_methods.csv"),
+    os.path.join(script_dir, "parameter_sweep_results_PBMC3k_Multiple_methods.csv")
 ]
 dataset_names = ["Fasttext", "Isolet", "MNIST", "PBMC3k"]
 
@@ -26,12 +30,21 @@ dataset_names = ["Fasttext", "Isolet", "MNIST", "PBMC3k"]
 # Accuracy metric columns
 #---------------------------
 accuracy_cols = [
-    'MPAD Accuracy',
+    'MPAD Accuracy',  # Column name in CSV (kept as 'MPAD Accuracy' for data access)
     'UMAP Accuracy',
     'Isomap Accuracy',
     'KernelPCA Accuracy',
     'MDS Accuracy'
 ]
+
+# Display names for methods (MPAD → QPAD for display only)
+method_display_names = {
+    'MPAD Accuracy': 'QPAD Accuracy',
+    'UMAP Accuracy': 'UMAP Accuracy',
+    'Isomap Accuracy': 'Isomap Accuracy',
+    'KernelPCA Accuracy': 'KernelPCA Accuracy',
+    'MDS Accuracy': 'MDS Accuracy'
+}
 
 #--------------------------------------------------
 # Helper functions (same as your original code)
@@ -95,9 +108,10 @@ def get_subset_for_parameter(df, param, baseline):
 #---------------------------
 method_styles = {
     'MPAD Accuracy':    {'color': 'red',    'marker': 'o', 'linestyle': '-'},
-    'UMAP Accuracy':       {'color': 'green',  'marker': '^', 'linestyle': '-.'},
-    'Isomap Accuracy':     {'color': 'orange', 'marker': 'D', 'linestyle': ':'},
-    'KernelPCA Accuracy':  {'color': 'purple', 'marker': 'v', 'linestyle': '-'},
+    'PCA Accuracy':     {'color': '#FF8C00',    'marker': 's', 'linestyle': '--'},
+    'UMAP Accuracy':    {'color': '#8B4513',  'marker': '^', 'linestyle': '-.'},
+    'Isomap Accuracy':  {'color': '#FF1493', 'marker': 'D', 'linestyle': ':'},
+    'KernelPCA Accuracy':  {'color': '#9370DB', 'marker': 'v', 'linestyle': '-'},
     'MDS Accuracy':        {'color': 'gray',   'marker': 'X', 'linestyle': '--'}
 }
 
@@ -160,21 +174,25 @@ for i, csv_path in enumerate(csv_paths):
 
         for col in accuracy_cols:
             style = method_styles.get(col, {})
+            # Use display name instead of column name
+            display_name = method_display_names.get(col, col)
             ax.plot(summary[param], summary[col],
                     marker=style.get('marker', 'o'),
                     linestyle=style.get('linestyle', '-'),
                     color=style.get('color', None),
-                    label=col)
+                    label=display_name)
         if param == 'alpha':
             ax.set_xscale('log')
-        ax.set_xlabel(param)
+        # Use display name for x-axis label
+        param_display = 'DRR' if param == 'Target Ratio' else ('α' if param == 'alpha' else param)
+        ax.set_xlabel(param_display)
         if j == 0:
-            ax.set_ylabel("Accuracy")
+            ax.set_ylabel("Recall@k")
 
     # Add a title to the subfigure with dataset name and baseline parameters.
     baseline_text = (
         f"Baseline: k = {best_baseline['k']}, "
-        f"Target Ratio = {best_baseline['Target Ratio']}, "
+        f"DRR = {best_baseline['Target Ratio']}, "
         f"b = {best_baseline['b']}, "
         f"alpha = {best_baseline['alpha']} (MPAD Acc = {best_score:.2%})"
     )

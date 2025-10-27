@@ -2,9 +2,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import math
+import os
+
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # Load the data
-df = pd.read_csv("parameter_sweep_results_Isolet_Multiple_methods.csv")
+df = pd.read_csv(os.path.join(script_dir, "parameter_sweep_results_Isolet_Multiple_methods.csv"))
 
 # Define the accuracy columns
 accuracy_columns = [
@@ -72,7 +76,7 @@ for idx, (_, params) in enumerate(unique_params.iterrows()):
                     )
 
     # Create x-axis tick labels.
-    xtick_labels = [f"TR={row['Target Ratio']}\nk={row['k']}" for _, row in group_df_sorted.iterrows()]
+    xtick_labels = [f"DRR={row['Target Ratio']}\nk={row['k']}" for _, row in group_df_sorted.iterrows()]
     ax.set_xticks(x)
     ax.set_xticklabels(xtick_labels)
     ax.set_ylabel('Accuracy')

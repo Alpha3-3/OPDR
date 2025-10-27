@@ -1,5 +1,90 @@
-# Default ignored files
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
 /shelf/
 /workspace.xml
+
+# Data files
 *.npy
-/Archive/CIFAR-100/cifar-100-python/
+*.npz
+*.h5ad
+*.fbin
+*.ibin
+*.fvecs
+*.ivecs
+*.data
+*.labels
+*.param
+*.vec
+*.Z
+
+# Results and outputs
+*.csv
+*.xlsx
+*.txt
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Datasets
+Archive/CIFAR-10/
+Archive/CIFAR-100/
+Archive/COCO/
+Archive/Dorothea/
+Archive/MNIST/
+Dataset processing and testing/*/data/
+Dataset processing and testing/Deep10M/
+Dataset processing and testing/SIFT10K/
+Dataset processing and testing/SIFT1M/
+Dataset processing and testing/TextToImage1M/
+Dataset processing and testing/Fasttext/data/
+Dataset processing and testing/Isolet/data/
+Dataset processing and testing/PBMC3k/data/
+Dataset processing and testing/Arcene/data/
+
+# Backup and temporary files
+*.zip
+*.tar.gz
+*.bak
+*backup*
+Dataset backup*/
+
+# Large files
+training_vectors_*.npy
+testing_vectors_*.npy
+
+# OS
+.DS_Store
+Thumbs.db

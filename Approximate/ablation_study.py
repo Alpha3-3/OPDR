@@ -1,0 +1,278 @@
+import numpy as np
+import pandas as pd
+import os
+import itertools
+import multiprocessing as mp
+from main_program import main_evaluation
+import time
+
+# Dataset configurations
+DATASET_CONFIGS = {
+    "Fasttext": {
+        "train_files": [
+            "training_vectors_01pct_Fasttext.npy",
+            "training_vectors_05pct_Fasttext.npy", 
+            "training_vectors_10pct_Fasttext.npy"
+        ],
+        "test_files": [
+            "testing_vectors_01pct_Fasttext.npy",
+            "testing_vectors_05pct_Fasttext.npy",
+            "testing_vectors_10pct_Fasttext.npy"
+        ],
+        "original_dim": 300,
+        "target_dims": [64, 128, 192],
+        "b_percentages": [0.5, 1.0, 2.0, 4.0, 8.0],
+        "alphas": [0.05, 0.10, 0.20, 0.40],
+        "k_values": [1, 10, 50]
+    },
+    "Isolet": {
+        "train_files": ["training_vectors_Isolet.npy"],
+        "test_files": ["testing_vectors_Isolet.npy"],
+        "original_dim": 617,
+        "target_dims": [64, 128, 256, 384],
+        "b_percentages": [0.5, 1.0, 2.0, 4.0, 8.0],
+        "alphas": [0.05, 0.10, 0.20, 0.40],
+        "k_values": [1, 10, 50]
+    },
+    "PBMC3k": {
+        "train_files": ["training_vectors_PBMC3k.npy"],
+        "test_files": ["testing_vectors_PBMC3k.npy"],
+        "original_dim": 1838,
+        "target_dims": [128, 256, 384, 512],
+        "b_percentages": [0.5, 1.0, 2.0, 4.0, 8.0],
+        "alphas": [0.05, 0.10, 0.20, 0.40],
+        "k_values": [1, 10, 50]
+    },
+    "Arcene": {
+        "train_files": ["training_vectors_Arcene.npy"],
+        "test_files": ["testing_vectors_Arcene.npy"],
+        "original_dim": 10000,
+        "target_dims": [128, 256, 384, 512, 1024],
+        "b_percentages": [0.5, 1.0, 2.0, 4.0, 8.0],
+        "alphas": [0.05, 0.10, 0.20, 0.40],
+        "k_values": [1, 10, 50]
+    }
+}
+
+# Baseline parameters for each dataset
+BASELINE_PARAMS = {
+    "Fasttext": {"k": 10, "target_dim": 128, "b": 1.0, "alpha": 0.1},
+    "Isolet": {"k": 10, "target_dim": 256, "b": 1.0, "alpha": 0.1},
+    "PBMC3k": {"k": 10, "target_dim": 384, "b": 2.0, "alpha": 0.4},
+    "Arcene": {"k": 10, "target_dim": 512, "b": 4.0, "alpha": 0.4}
+}
+
+def run_single_experiment(args):
+    """Run a single experiment"""
+    (dataset_name, train_file, test_file, target_dim, b_percentage, alpha, k_values, 
+     experiment_type, varied_param, varied_value) = args
+    
+    try:
+        print(f"Running {experiment_type} for {dataset_name}: {varied_param}={varied_value}")
+        
+        # Run evaluation
+        results = main_evaluation(dataset_name, train_file, test_file, target_dim, b_percentage, alpha, k_values)
+        
+        # Flatten results for DataFrame
+        flattened_results = []
+        
+        for method_name, method_results in results.items():
+            dr_time = method_results.get('dr_time', np.nan)
+            
+            for index_name, index_results in method_results.items():
+                if index_name != 'dr_time':
+                    for k, recall in index_results.items():
+                        flattened_results.append({
+                            'dataset': dataset_name,
+                            'train_file': train_file,
+                            'test_file': test_file,
+                            'experiment_type': experiment_type,
+                            'varied_param': varied_param,
+                            'varied_value': varied_value,
+                            'target_dim': target_dim,
+                            'b_percentage': b_percentage,
+                            'alpha': alpha,
+                            'method': method_name,
+                            'index_method': index_name,
+                            'k': k,
+                            'recall': recall,
+                            'dr_time': dr_time
+                        })
+        
+        return flattened_results
+        
+    except Exception as e:
+        print(f"Error in experiment {dataset_name} {varied_param}={varied_value}: {e}")
+        return []
+
+def ablation_study_k(dataset_name, config, baseline_params):
+    """Ablation study varying k values"""
+    print(f"\n=== Ablation Study: Varying k for {dataset_name} ===")
+    
+    experiments = []
+    
+    for train_file, test_file in zip(config["train_files"], config["test_files"]):
+        if not (os.path.exists(train_file) and os.path.exists(test_file)):
+            print(f"Files not found: {train_file}, {test_file}")
+            continue
+            
+        for k in config["k_values"]:
+            experiments.append((
+                dataset_name, train_file, test_file,
+                baseline_params["target_dim"], baseline_params["b"], baseline_params["alpha"],
+                [k], "ablation_k", "k", k
+            ))
+    
+    return experiments
+
+def ablation_study_target_dim(dataset_name, config, baseline_params):
+    """Ablation study varying target dimensions"""
+    print(f"\n=== Ablation Study: Varying Target Dim for {dataset_name} ===")
+    
+    experiments = []
+    
+    for train_file, test_file in zip(config["train_files"], config["test_files"]):
+        if not (os.path.exists(train_file) and os.path.exists(test_file)):
+            print(f"Files not found: {train_file}, {test_file}")
+            continue
+            
+        for target_dim in config["target_dims"]:
+            experiments.append((
+                dataset_name, train_file, test_file,
+                target_dim, baseline_params["b"], baseline_params["alpha"],
+                [baseline_params["k"]], "ablation_target_dim", "target_dim", target_dim
+            ))
+    
+    return experiments
+
+def ablation_study_b(dataset_name, config, baseline_params):
+    """Ablation study varying b percentages"""
+    print(f"\n=== Ablation Study: Varying b for {dataset_name} ===")
+    
+    experiments = []
+    
+    for train_file, test_file in zip(config["train_files"], config["test_files"]):
+        if not (os.path.exists(train_file) and os.path.exists(test_file)):
+            print(f"Files not found: {train_file}, {test_file}")
+            continue
+            
+        for b_percentage in config["b_percentages"]:
+            experiments.append((
+                dataset_name, train_file, test_file,
+                baseline_params["target_dim"], b_percentage, baseline_params["alpha"],
+                [baseline_params["k"]], "ablation_b", "b_percentage", b_percentage
+            ))
+    
+    return experiments
+
+def ablation_study_alpha(dataset_name, config, baseline_params):
+    """Ablation study varying alpha values"""
+    print(f"\n=== Ablation Study: Varying alpha for {dataset_name} ===")
+    
+    experiments = []
+    
+    for train_file, test_file in zip(config["train_files"], config["test_files"]):
+        if not (os.path.exists(train_file) and os.path.exists(test_file)):
+            print(f"Files not found: {train_file}, {test_file}")
+            continue
+            
+        for alpha in config["alphas"]:
+            experiments.append((
+                dataset_name, train_file, test_file,
+                baseline_params["target_dim"], baseline_params["b"], alpha,
+                [baseline_params["k"]], "ablation_alpha", "alpha", alpha
+            ))
+    
+    return experiments
+
+def run_ablation_study(dataset_name, study_type="all"):
+    """Run ablation study for a specific dataset"""
+    if dataset_name not in DATASET_CONFIGS:
+        print(f"Unknown dataset: {dataset_name}")
+        return
+    
+    config = DATASET_CONFIGS[dataset_name]
+    baseline_params = BASELINE_PARAMS[dataset_name]
+    
+    print(f"Starting ablation study for {dataset_name}")
+    print(f"Baseline parameters: {baseline_params}")
+    
+    all_experiments = []
+    
+    if study_type in ["all", "k"]:
+        all_experiments.extend(ablation_study_k(dataset_name, config, baseline_params))
+    
+    if study_type in ["all", "target_dim"]:
+        all_experiments.extend(ablation_study_target_dim(dataset_name, config, baseline_params))
+    
+    if study_type in ["all", "b"]:
+        all_experiments.extend(ablation_study_b(dataset_name, config, baseline_params))
+    
+    if study_type in ["all", "alpha"]:
+        all_experiments.extend(ablation_study_alpha(dataset_name, config, baseline_params))
+    
+    print(f"Total experiments to run: {len(all_experiments)}")
+    
+    if len(all_experiments) == 0:
+        print("No experiments to run")
+        return
+    
+    # Run experiments in parallel
+    start_time = time.time()
+    
+    with mp.Pool(processes=mp.cpu_count()) as pool:
+        results = pool.map(run_single_experiment, all_experiments)
+    
+    # Flatten results
+    all_results = []
+    for result_list in results:
+        all_results.extend(result_list)
+    
+    # Convert to DataFrame
+    df_results = pd.DataFrame(all_results)
+    
+    # Save results
+    output_file = f"ablation_results_{dataset_name}.csv"
+    df_results.to_csv(output_file, index=False)
+    
+    end_time = time.time()
+    print(f"\nAblation study completed for {dataset_name}")
+    print(f"Total time: {end_time - start_time:.2f} seconds")
+    print(f"Results saved to: {output_file}")
+    print(f"Total experiments completed: {len(all_results)}")
+    
+    return df_results
+
+def run_all_ablation_studies():
+    """Run ablation studies for all datasets"""
+    datasets = ["Fasttext", "Isolet", "PBMC3k", "Arcene"]
+    
+    for dataset in datasets:
+        try:
+            print(f"\n{'='*60}")
+            print(f"Starting ablation study for {dataset}")
+            print(f"{'='*60}")
+            
+            results = run_ablation_study(dataset)
+            
+            if results is not None:
+                print(f"\nSummary for {dataset}:")
+                print(f"Total experiments: {len(results)}")
+                print(f"Methods tested: {results['method'].nunique()}")
+                print(f"Index methods: {results['index_method'].unique()}")
+                print(f"Average recall: {results['recall'].mean():.4f}")
+            
+        except Exception as e:
+            print(f"Error running ablation study for {dataset}: {e}")
+            continue
+
+if __name__ == "__main__":
+    import sys
+    
+    if len(sys.argv) > 1:
+        dataset_name = sys.argv[1]
+        study_type = sys.argv[2] if len(sys.argv) > 2 else "all"
+        run_ablation_study(dataset_name, study_type)
+    else:
+        # Run ablation studies for all datasets
+        run_all_ablation_studies()

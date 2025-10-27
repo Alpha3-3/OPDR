@@ -20,15 +20,16 @@ display_methods_config = [
 
 predefined_colors = {
     'dw_pmad_Accuracy':            'red',
-    'umap_Accuracy':               'green',
-    'isomap_Accuracy':             'orange',
-    'kernelpca_Accuracy':          'plum',
-    'randomprojection_Accuracy':   'brown',
+    'pca_Accuracy':                '#FF8C00',
+    'umap_Accuracy':               '#8B4513',
+    'isomap_Accuracy':             '#FF1493',
+    'kernelpca_Accuracy':          '#9370DB',
+    'randomprojection_Accuracy':   '#808080',
     'tsne_Accuracy':               'teal',
-    'nmf_Accuracy':                'yellowgreen',
-    'lle_Accuracy':                'gray',
-    'featureagglomeration_Accuracy':'blue',
-    'autoencoder_Accuracy':        'blue',
+    'nmf_Accuracy':                '#006400',
+    'lle_Accuracy':                '#4169E1',
+    'featureagglomeration_Accuracy':'#FFD700',
+    'autoencoder_Accuracy':        '#32CD32',
     'vae_Accuracy':                'tan',
 }
 

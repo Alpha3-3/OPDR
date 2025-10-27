@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import os
 
 plt.rcParams.update({'font.size': 24})
 plt.style.use('tableau-colorblind10')
@@ -8,11 +9,14 @@ plt.style.use('tableau-colorblind10')
 # ---------------------------------------------------
 # 1. Define CSV paths and dataset names.
 # ---------------------------------------------------
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
 csv_paths = [
-    "parameter_sweep_results_Fasttext_Multiple_methods_with_additional_baselines.csv",
-    "parameter_sweep_results_Isolet_Multiple_methods_with_additional_baselines.csv",
-    "parameter_sweep_results_Arcene_Multiple_methods_with_additional_baselines.csv",
-    "parameter_sweep_results_PBMC3k_Multiple_methods_with_additional_baselines.csv"
+    os.path.join(script_dir, "parameter_sweep_results_Fasttext_Multiple_methods_with_additional_baselines.csv"),
+    os.path.join(script_dir, "parameter_sweep_results_Isolet_Multiple_methods_with_additional_baselines.csv"),
+    os.path.join(script_dir, "parameter_sweep_results_Arcene_Multiple_methods_with_additional_baselines.csv"),
+    os.path.join(script_dir, "parameter_sweep_results_PBMC3k_Multiple_methods_with_additional_baselines.csv")
 ]
 dataset_names = ["Fasttext", "Isolet", "Arcene", "PBMC3k"]
 
@@ -20,7 +24,7 @@ dataset_names = ["Fasttext", "Isolet", "Arcene", "PBMC3k"]
 # 2. Define display methods, colors, etc.
 # ---------------------------------------------------
 display_methods_config = [
-    {'x_label': 'MPAD',  'full_csv_col_name': 'MPAD Accuracy'},
+    {'x_label': 'QPAD',  'full_csv_col_name': 'MPAD Accuracy'},
     {'x_label': 'UMAP',  'full_csv_col_name': 'UMAP Accuracy'},
     {'x_label': 'Isomap','full_csv_col_name': 'Isomap Accuracy'},
     {'x_label': 'KPCA',  'full_csv_col_name': 'KernelPCA Accuracy'},
@@ -36,14 +40,15 @@ display_methods_config = [
 
 predefined_method_attributes = {
     'MPAD Accuracy':                    {'color': 'red'},
-    'UMAP Accuracy':                    {'color': 'green'},
-    'Isomap Accuracy':                  {'color': 'orange'},
-    'KernelPCA Accuracy':               {'color': 'plum'},
-    'Autoencoder Accuracy':             {'color': 'blue'},
-    'Feature Agglomeration Accuracy':   {'color': 'blue'},
-    'LLE Accuracy':                     {'color': 'gray'},
-    'NMF Accuracy':                     {'color': 'yellowgreen'},
-    'RandomProjection Accuracy':        {'color': 'brown'},
+    'PCA Accuracy':                     {'color': '#FF8C00'},
+    'UMAP Accuracy':                    {'color': '#8B4513'},
+    'Isomap Accuracy':                  {'color': '#FF1493'},
+    'KernelPCA Accuracy':               {'color': '#9370DB'},
+    'Autoencoder Accuracy':             {'color': '#32CD32'},
+    'Feature Agglomeration Accuracy':   {'color': '#FFD700'},
+    'LLE Accuracy':                     {'color': '#4169E1'},
+    'NMF Accuracy':                     {'color': '#006400'},
+    'RandomProjection Accuracy':        {'color': '#808080'},
     'VAE Accuracy':                     {'color': 'tan'},
     'tSNE Accuracy':                    {'color': 'teal'},
     'LSH Accuracy':                     {'color': 'olive'}

@@ -1,9 +1,14 @@
 import pandas as pd
+import os
+
+# Get the directory where this script is located
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(script_dir)
 
 # File names (adjust paths if necessary)
-main_csv = 'parameter_sweep_results_Isolet_Multiple_methods_with_additional_baselines.csv'
-add_csv = '../More Baseline/lsh_baseline_results_Isolet.csv'
-output_csv = 'parameter_sweep_results_Isolet_Multiple_methods_with_additional_baselines.csv'
+main_csv = os.path.join(script_dir, 'parameter_sweep_results_Isolet_Multiple_methods_with_additional_baselines.csv')
+add_csv = os.path.join(parent_dir, 'More Baseline', 'lsh_baseline_results_Isolet.csv')
+output_csv = os.path.join(script_dir, 'parameter_sweep_results_Isolet_Multiple_methods_with_additional_baselines.csv')
 
 # Read the main parameter sweep CSV file
 df_main = pd.read_csv(main_csv)
